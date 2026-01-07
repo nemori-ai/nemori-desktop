@@ -147,3 +147,62 @@ async def backfill_screenshots():
         "processed": processed_count,
         "message": f"Backfilled {processed_count} screenshots. Queue size: {memory_manager.get_batch_status()['queue_size']}"
     }
+
+
+@router.post("/regenerate-semantic")
+async def regenerate_semantic_memories():
+    """
+    Regenerate semantic memories from existing episodic memories.
+    Useful when semantic memories were lost due to schema issues.
+    """
+    from agents.semantic_agent import SemanticAgent
+
+    db = Database.get_instance()
+    semantic_agent = SemanticAgent()
+
+    # Get all episodic memories
+    episodic_memories = await db.get_episodic_memories(limit=1000)
+
+    created_count = 0
+    errors = []
+
+    for episodic in episodic_memories:
+        try:
+            # Get the event_ids (original message IDs) from the episodic memory
+            event_ids = episodic.get('event_ids', [])
+            if isinstance(event_ids, str):
+                import json
+                event_ids = json.loads(event_ids)
+
+            if not event_ids:
+                continue
+
+            # Get source_app from episodic memory
+            source_app = episodic.get('source_app', ['nemori'])
+            if isinstance(source_app, str):
+                import json
+                source_app = json.loads(source_app)
+
+            # Create semantic memories from the segment
+            semantic_memories = await semantic_agent.create_from_segment(
+                message_ids=event_ids,
+                summary=episodic.get('content'),
+                top_n=5,
+                source_app=source_app
+            )
+
+            created_count += len(semantic_memories)
+            print(f"Created {len(semantic_memories)} semantic memories from episodic: {episodic.get('title', 'Untitled')}")
+
+        except Exception as e:
+            error_msg = f"Failed to process episodic {episodic.get('id')}: {str(e)}"
+            print(error_msg)
+            errors.append(error_msg)
+
+    return {
+        "success": True,
+        "episodic_count": len(episodic_memories),
+        "semantic_created": created_count,
+        "errors": errors[:10] if errors else [],  # Only return first 10 errors
+        "message": f"Regenerated {created_count} semantic memories from {len(episodic_memories)} episodic memories"
+    }
