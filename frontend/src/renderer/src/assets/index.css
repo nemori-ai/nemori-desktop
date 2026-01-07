@@ -1,0 +1,301 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 48%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+      sans-serif;
+    overflow: hidden;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Window drag region */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Markdown content styles */
+.markdown-content {
+  @apply max-w-none leading-relaxed;
+}
+
+.markdown-content p {
+  @apply mb-2 last:mb-0;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4 {
+  @apply font-semibold mb-2 mt-3 first:mt-0;
+}
+
+.markdown-content h1 {
+  @apply text-lg;
+}
+
+.markdown-content h2 {
+  @apply text-base;
+}
+
+.markdown-content h3 {
+  @apply text-sm font-semibold;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  @apply pl-5 mb-2 space-y-1;
+}
+
+.markdown-content ul {
+  @apply list-disc;
+}
+
+.markdown-content ol {
+  @apply list-decimal;
+}
+
+.markdown-content li {
+  @apply leading-relaxed;
+}
+
+.markdown-content pre {
+  @apply bg-zinc-800 dark:bg-zinc-900 rounded-lg p-3 overflow-x-auto my-2 text-zinc-100;
+}
+
+.markdown-content code {
+  @apply bg-muted px-1.5 py-0.5 rounded text-[13px] font-mono;
+}
+
+.markdown-content pre code {
+  @apply bg-transparent p-0 text-sm;
+}
+
+.markdown-content blockquote {
+  @apply border-l-4 border-primary/30 pl-3 my-2 italic text-muted-foreground;
+}
+
+.markdown-content a {
+  @apply text-primary underline underline-offset-2 hover:text-primary/80;
+}
+
+.markdown-content table {
+  @apply w-full border-collapse my-2;
+}
+
+.markdown-content th,
+.markdown-content td {
+  @apply border border-border px-3 py-1.5 text-left;
+}
+
+.markdown-content th {
+  @apply bg-muted font-medium;
+}
+
+.markdown-content hr {
+  @apply my-4 border-border;
+}
+
+.markdown-content strong {
+  @apply font-semibold;
+}
+
+.markdown-content em {
+  @apply italic;
+}
+
+/* Chat message animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-enter {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Streamdown content styles */
+.streamdown-content {
+  @apply max-w-none leading-relaxed;
+}
+
+.streamdown-content > *:first-child {
+  @apply mt-0;
+}
+
+.streamdown-content > *:last-child {
+  @apply mb-0;
+}
+
+.streamdown-content p {
+  @apply mb-2;
+}
+
+.streamdown-content h1,
+.streamdown-content h2,
+.streamdown-content h3,
+.streamdown-content h4 {
+  @apply font-semibold mb-2 mt-3;
+}
+
+.streamdown-content h1:first-child,
+.streamdown-content h2:first-child,
+.streamdown-content h3:first-child,
+.streamdown-content h4:first-child {
+  @apply mt-0;
+}
+
+.streamdown-content h1 {
+  @apply text-lg;
+}
+
+.streamdown-content h2 {
+  @apply text-base;
+}
+
+.streamdown-content h3 {
+  @apply text-sm font-semibold;
+}
+
+.streamdown-content ul,
+.streamdown-content ol {
+  @apply pl-5 mb-2 space-y-1;
+}
+
+.streamdown-content ul {
+  @apply list-disc;
+}
+
+.streamdown-content ol {
+  @apply list-decimal;
+}
+
+.streamdown-content li {
+  @apply leading-relaxed;
+}
+
+.streamdown-content pre {
+  @apply bg-zinc-800 dark:bg-zinc-900 rounded-lg p-3 overflow-x-auto my-2 text-zinc-100;
+}
+
+.streamdown-content code {
+  @apply bg-muted px-1.5 py-0.5 rounded text-[13px] font-mono;
+}
+
+.streamdown-content pre code {
+  @apply bg-transparent p-0 text-sm;
+}
+
+.streamdown-content blockquote {
+  @apply border-l-4 border-primary/30 pl-3 my-2 italic text-muted-foreground;
+}
+
+.streamdown-content a {
+  @apply text-primary underline underline-offset-2 hover:text-primary/80;
+}
+
+.streamdown-content table {
+  @apply w-full border-collapse my-2;
+}
+
+.streamdown-content th,
+.streamdown-content td {
+  @apply border border-border px-3 py-1.5 text-left;
+}
+
+.streamdown-content th {
+  @apply bg-muted font-medium;
+}
+
+.streamdown-content hr {
+  @apply my-4 border-border;
+}
+
+.streamdown-content strong {
+  @apply font-semibold;
+}
+
+.streamdown-content em {
+  @apply italic;
+}
