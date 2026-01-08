@@ -11,8 +11,8 @@ env:
   NODE_VERSION: '20'
 
 jobs:
-  build-macos:
-    runs-on: macos-latest
+  build-macos-x64:
+    runs-on: macos-13  # Intel Mac
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -46,22 +46,66 @@ jobs:
         working-directory: frontend
         run: npm install
 
-      - name: Build Electron app for macOS (x64)
+      - name: Build Electron app for macOS x64
         working-directory: frontend
         run: npm run build && npx electron-builder --mac --x64
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Electron app for macOS (arm64)
+      - name: Upload macOS x64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-x64-builds
+          path: |
+            frontend/dist/*.dmg
+            frontend/dist/*.zip
+          if-no-files-found: error
+
+  build-macos-arm64:
+    runs-on: macos-latest  # Apple Silicon Mac
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install .
+
+      - name: Build Python backend with PyInstaller
+        working-directory: backend
+        run: |
+          pyinstaller nemori-backend.spec --clean --noconfirm
+          mkdir -p ../backend-dist/mac
+          cp dist/nemori-backend ../backend-dist/mac/
+          chmod +x ../backend-dist/mac/nemori-backend
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install frontend dependencies
         working-directory: frontend
-        run: npx electron-builder --mac --arm64
+        run: npm install
+
+      - name: Build Electron app for macOS arm64
+        working-directory: frontend
+        run: npm run build && npx electron-builder --mac --arm64
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload macOS artifacts
+      - name: Upload macOS arm64 artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-builds
+          name: macos-arm64-builds
           path: |
             frontend/dist/*.dmg
             frontend/dist/*.zip
@@ -116,7 +160,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: [build-macos, build-windows]
+    needs: [build-macos-x64, build-macos-arm64, build-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -134,7 +178,8 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            artifacts/macos-builds/*
+            artifacts/macos-x64-builds/*
+            artifacts/macos-arm64-builds/*
             artifacts/windows-builds/*
           draft: false
           prerelease: false
