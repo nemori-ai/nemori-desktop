@@ -1,5 +1,8 @@
 """
-Main Agent - Event segmentation for determining memory boundaries
+Event Segmenter - Determines memory boundaries from event sequences
+
+This is a fixed workflow that analyzes event sequences and determines
+optimal segmentation points for creating coherent episodic memories.
 """
 
 import json
@@ -26,8 +29,8 @@ class EventSegmentation:
         }
 
 
-class MainAgent:
-    """Agent for analyzing event sequences and determining segmentation points"""
+class EventSegmenter:
+    """Segmenter for analyzing event sequences and determining segmentation points"""
 
     def __init__(self):
         self.db = Database.get_instance()
@@ -259,3 +262,7 @@ Important:
                 pass
 
         return False
+
+
+# Backward compatibility alias
+MainAgent = EventSegmenter

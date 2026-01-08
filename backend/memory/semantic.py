@@ -1,5 +1,7 @@
 """
-Semantic Agent - Extracts life insights from message batches into 8 categories
+Semantic Extractor - Extracts life insights from message batches into 8 categories
+
+This is a fixed workflow that transforms event data into categorized semantic memories.
 """
 
 import uuid
@@ -25,8 +27,8 @@ SEMANTIC_CATEGORIES = {
 }
 
 
-class SemanticAgent:
-    """Agent for extracting semantic memories across 8 life categories"""
+class SemanticExtractor:
+    """Extractor for semantic memories across 8 life categories"""
 
     def __init__(self):
         self.db = Database.get_instance()
@@ -69,11 +71,11 @@ class SemanticAgent:
                 fallback = self._extract_heuristic_items(messages, session_summary)
                 has_fallback = any(fallback.get(cat, []) for cat in SEMANTIC_CATEGORIES.keys())
                 if has_fallback:
-                    print('SemanticAgent: using heuristic fallback')
+                    print('SemanticExtractor: using heuristic fallback')
                     calibration = fallback
                     calibration['__fallback'] = True
                 else:
-                    print('SemanticAgent: no semantic items extracted')
+                    print('SemanticExtractor: no semantic items extracted')
                     return []
 
             # Generate and save individual semantic memories
@@ -429,3 +431,7 @@ Maximum 2 items per category, 8 items total."""
             result['career'].append("User is involved in software development")
 
         return result
+
+
+# Backward compatibility alias
+SemanticAgent = SemanticExtractor

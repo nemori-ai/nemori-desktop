@@ -30,8 +30,8 @@ class MemoryService:
     def _get_memory_manager(self):
         """Get or create the memory manager (lazy initialization)"""
         if self._memory_manager is None:
-            from agents.memory_manager import MemoryManager
-            self._memory_manager = MemoryManager.get_instance()
+            from memory import MemoryOrchestrator
+            self._memory_manager = MemoryOrchestrator.get_instance()
         return self._memory_manager
 
     async def add_to_batch(self, message: Dict[str, Any]) -> None:

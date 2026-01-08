@@ -111,10 +111,10 @@ async def backfill_screenshots():
     Backfill existing screenshots that weren't added to the message queue.
     This is a one-time fix for screenshots captured before the memory manager integration.
     """
-    from agents.memory_manager import MemoryManager
+    from memory import MemoryOrchestrator
 
     db = Database.get_instance()
-    memory_manager = MemoryManager.get_instance()
+    memory_manager = MemoryOrchestrator.get_instance()
 
     # Get all screenshots
     screenshots = await db.get_screenshots(limit=1000)
@@ -155,10 +155,10 @@ async def regenerate_semantic_memories():
     Regenerate semantic memories from existing episodic memories.
     Useful when semantic memories were lost due to schema issues.
     """
-    from agents.semantic_agent import SemanticAgent
+    from memory import SemanticExtractor
 
     db = Database.get_instance()
-    semantic_agent = SemanticAgent()
+    semantic_agent = SemanticExtractor()
 
     # Get all episodic memories
     episodic_memories = await db.get_episodic_memories(limit=1000)

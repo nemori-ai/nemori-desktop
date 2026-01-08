@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Send, Plus, Trash2, Loader2 } from 'lucide-react'
+import { Send, Plus, Trash2, Loader2, Bot, MessageCircle, ChevronDown, ChevronRight, Sparkles, Search, Clock } from 'lucide-react'
 import MarkdownIt from 'markdown-it'
-import { api, Message, Conversation } from '../services/api'
+import { api, Message, Conversation, AgentStreamEvent, AgentToolCall } from '../services/api'
 
 // Initialize markdown parser - same approach as MineContext
 const md = new MarkdownIt({
@@ -13,7 +13,6 @@ const md = new MarkdownIt({
 })
 
 // Markdown rendering component using dangerouslySetInnerHTML
-// This approach handles streaming content much better than React-based markdown renderers
 function MarkdownContent({ content }: { content: string }): JSX.Element {
   const htmlContent = useMemo(() => {
     return md.render(content || '')
@@ -50,6 +49,197 @@ function formatRelativeDate(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })
 }
 
+// Tool call icon mapping
+const toolIcons: Record<string, JSX.Element> = {
+  search_episodic_memory: <Search className="w-3.5 h-3.5" />,
+  search_semantic_memory: <Sparkles className="w-3.5 h-3.5" />,
+  keyword_search: <Search className="w-3.5 h-3.5" />,
+  time_filter: <Clock className="w-3.5 h-3.5" />,
+  get_user_profile: <Bot className="w-3.5 h-3.5" />,
+  get_recent_activity: <Clock className="w-3.5 h-3.5" />
+}
+
+// Tool call display component
+function ToolCallDisplay({
+  toolCall,
+  isExpanded,
+  onToggle
+}: {
+  toolCall: AgentToolCall
+  isExpanded: boolean
+  onToggle: () => void
+}): JSX.Element {
+  const statusColors = {
+    pending: 'text-muted-foreground',
+    running: 'text-blue-500',
+    completed: 'text-green-500',
+    error: 'text-red-500'
+  }
+
+  const formatToolName = (name: string) => {
+    return name.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
+  }
+
+  // Parse result if it's a string
+  let parsedResult = toolCall.result
+  if (typeof parsedResult === 'string') {
+    try {
+      parsedResult = JSON.parse(parsedResult)
+    } catch {
+      // Keep as string
+    }
+  }
+
+  return (
+    <div className="border border-border rounded-lg overflow-hidden bg-muted/30 my-2 max-w-full">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted/50 transition-colors text-left"
+      >
+        {isExpanded ? (
+          <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+        ) : (
+          <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+        )}
+        <span className={`${statusColors[toolCall.status]}`}>
+          {toolIcons[toolCall.tool_name] || <Bot className="w-3.5 h-3.5" />}
+        </span>
+        <span className="text-sm font-medium flex-1 truncate">
+          {formatToolName(toolCall.tool_name)}
+        </span>
+        {toolCall.status === 'running' && (
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
+        )}
+        {toolCall.duration_ms && (
+          <span className="text-xs text-muted-foreground">
+            {toolCall.duration_ms}ms
+          </span>
+        )}
+      </button>
+
+      {isExpanded && (
+        <div className="px-3 pb-3 space-y-2 text-xs overflow-hidden">
+          {/* Arguments */}
+          <div className="overflow-hidden">
+            <span className="text-muted-foreground">Arguments:</span>
+            <pre className="mt-1 p-2 bg-background rounded text-xs overflow-x-auto max-w-full whitespace-pre-wrap break-all">
+              {JSON.stringify(toolCall.tool_args, null, 2)}
+            </pre>
+          </div>
+
+          {/* Result */}
+          {toolCall.result && (
+            <div className="overflow-hidden">
+              <span className="text-muted-foreground">Result:</span>
+              <pre className="mt-1 p-2 bg-background rounded text-xs overflow-x-auto max-h-48 overflow-y-auto max-w-full whitespace-pre-wrap break-all">
+                {typeof parsedResult === 'object'
+                  ? JSON.stringify(parsedResult, null, 2)
+                  : String(parsedResult)}
+              </pre>
+            </div>
+          )}
+
+          {/* Error */}
+          {toolCall.error && (
+            <div className="overflow-hidden">
+              <span className="text-red-500">Error:</span>
+              <pre className="mt-1 p-2 bg-red-500/10 rounded text-xs text-red-500 max-w-full whitespace-pre-wrap break-all">
+                {toolCall.error}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Agent thinking indicator
+function ThinkingIndicator({ step }: { step: number }): JSX.Element {
+  return (
+    <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+      <div className="flex items-center gap-1">
+        <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+        <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
+        <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
+      </div>
+      <span>Thinking (Step {step})...</span>
+    </div>
+  )
+}
+
+// Agent message component with tool calls
+function AgentMessageBubble({
+  content,
+  toolCalls,
+  isThinking,
+  thinkingStep,
+  isStreaming
+}: {
+  content: string
+  toolCalls: AgentToolCall[]
+  isThinking: boolean
+  thinkingStep: number
+  isStreaming: boolean
+}): JSX.Element {
+  const [expandedTools, setExpandedTools] = useState<Set<string>>(new Set())
+
+  const toggleTool = (id: string) => {
+    setExpandedTools((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  return (
+    <div className="flex justify-start message-enter">
+      <div className="max-w-[85%]">
+        {/* Thinking indicator */}
+        {isThinking && <ThinkingIndicator step={thinkingStep} />}
+
+        {/* Tool calls */}
+        {toolCalls.length > 0 && (
+          <div className="mb-2">
+            {toolCalls.map((tc) => (
+              <ToolCallDisplay
+                key={tc.id}
+                toolCall={tc}
+                isExpanded={expandedTools.has(tc.id)}
+                onToggle={() => toggleTool(tc.id)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Response content - Claude style without bubble */}
+        {(content || isStreaming) && (
+          <div className="prose prose-sm max-w-none text-foreground">
+            {content ? (
+              <>
+                <MarkdownContent content={content} />
+                {isStreaming && (
+                  <span className="inline-block w-2 h-4 bg-primary/70 animate-pulse ml-0.5 align-middle" />
+                )}
+              </>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-muted-foreground">
+                <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function ChatPage(): JSX.Element {
   const { conversationId } = useParams()
   const navigate = useNavigate()
@@ -61,6 +251,16 @@ export default function ChatPage(): JSX.Element {
   const [isLoading, setIsLoading] = useState(false)
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamingContent, setStreamingContent] = useState('')
+
+  // Agent mode state
+  const [isAgentMode, setIsAgentMode] = useState(false)
+  const [isThinking, setIsThinking] = useState(false)
+  const [thinkingStep, setThinkingStep] = useState(0)
+  const [currentToolCalls, setCurrentToolCalls] = useState<AgentToolCall[]>([])
+
+  // Refs to track latest values (to avoid stale closures)
+  const streamingContentRef = useRef('')
+  const toolCallsRef = useRef<AgentToolCall[]>([])
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -81,7 +281,7 @@ export default function ChatPage(): JSX.Element {
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, streamingContent])
+  }, [messages, streamingContent, currentToolCalls])
 
   const loadConversations = async (): Promise<void> => {
     try {
@@ -95,15 +295,35 @@ export default function ChatPage(): JSX.Element {
   const loadMessages = async (convId: string): Promise<void> => {
     try {
       const { messages } = await api.getMessages(convId)
-      setMessages(messages)
+
+      // For agent messages, fetch their tool calls
+      const messagesWithToolCalls = await Promise.all(
+        messages.map(async (msg) => {
+          if (msg.metadata?.is_agent && msg.metadata?.session_id) {
+            try {
+              const sessionDetails = await api.getAgentSessionDetails(msg.metadata.session_id)
+              return {
+                ...msg,
+                metadata: {
+                  ...msg.metadata,
+                  tool_calls: sessionDetails.tool_calls || []
+                }
+              }
+            } catch {
+              return msg
+            }
+          }
+          return msg
+        })
+      )
+
+      setMessages(messagesWithToolCalls)
     } catch (error) {
       console.error('Failed to load messages:', error)
     }
   }
 
   const handleNewConversation = (): void => {
-    // Don't create conversation yet - just go to empty chat
-    // Conversation will be created when first message is sent
     setCurrentConversation(null)
     setMessages([])
     navigate('/chat')
@@ -123,6 +343,99 @@ export default function ChatPage(): JSX.Element {
       console.error('Failed to delete conversation:', error)
     }
   }
+
+  const handleAgentEvent = useCallback((event: AgentStreamEvent) => {
+    switch (event.type) {
+      case 'session_start':
+        setCurrentToolCalls([])
+        toolCallsRef.current = []
+        break
+
+      case 'thinking_start':
+        setIsThinking(true)
+        setThinkingStep(event.step || 1)
+        break
+
+      case 'thinking_end':
+        setIsThinking(false)
+        break
+
+      case 'tool_call_start': {
+        const newToolCall: AgentToolCall = {
+          id: event.data.tool_call_id || event.tool_call_id || '',
+          session_id: event.session_id,
+          step: event.step || 0,
+          tool_name: event.data.tool_name || '',
+          tool_args: {},
+          status: 'running'
+        }
+        setCurrentToolCalls((prev) => {
+          const updated = [...prev, newToolCall]
+          toolCallsRef.current = updated
+          return updated
+        })
+        break
+      }
+
+      case 'tool_call_args':
+        setCurrentToolCalls((prev) => {
+          const updated = prev.map((tc) =>
+            tc.id === (event.data.tool_call_id || event.tool_call_id)
+              ? { ...tc, tool_args: event.data.args || {} }
+              : tc
+          )
+          toolCallsRef.current = updated
+          return updated
+        })
+        break
+
+      case 'tool_call_result':
+        setCurrentToolCalls((prev) => {
+          const updated = prev.map((tc) =>
+            tc.id === (event.data.tool_call_id || event.tool_call_id)
+              ? {
+                  ...tc,
+                  status: 'completed' as const,
+                  result: event.data.result,
+                  duration_ms: event.data.duration_ms
+                }
+              : tc
+          )
+          toolCallsRef.current = updated
+          return updated
+        })
+        break
+
+      case 'tool_call_error':
+        setCurrentToolCalls((prev) => {
+          const updated = prev.map((tc) =>
+            tc.id === (event.data.tool_call_id || event.tool_call_id)
+              ? { ...tc, status: 'error' as const, error: event.data.error }
+              : tc
+          )
+          toolCallsRef.current = updated
+          return updated
+        })
+        break
+
+      case 'response_chunk':
+        setStreamingContent((prev) => {
+          const updated = prev + (event.data.content || '')
+          streamingContentRef.current = updated
+          return updated
+        })
+        break
+
+      case 'response_end':
+        streamingContentRef.current = event.data.content || ''
+        setStreamingContent(event.data.content || '')
+        break
+
+      case 'error':
+        console.error('Agent error:', event.data)
+        break
+    }
+  }, [])
 
   const handleSend = async (): Promise<void> => {
     if (!input.trim() || isLoading) return
@@ -145,50 +458,90 @@ export default function ChatPage(): JSX.Element {
       setIsStreaming(true)
       setStreamingContent('')
 
-      // Use streaming API
-      const { content: fullResponse, conversationId: newConvId } = await api.streamMessage(
-        userMessage,
-        currentConversation || undefined,
-        undefined,
-        true,
-        (chunk) => {
-          setStreamingContent((prev) => prev + chunk)
+      if (isAgentMode) {
+        // Agent mode - use streaming agent API
+        setCurrentToolCalls([])
+        toolCallsRef.current = []
+        streamingContentRef.current = ''
+        setIsThinking(false)
+
+        const { conversationId: newConvId } = await api.streamAgentChat(
+          userMessage,
+          currentConversation || undefined,
+          10,
+          handleAgentEvent
+        )
+
+        // Use refs to get the latest values (avoid stale closures)
+        const finalContent = streamingContentRef.current
+        const finalToolCalls = [...toolCallsRef.current]
+
+        // Add assistant message with tool calls
+        const assistantMessage: Message = {
+          id: `response-${Date.now()}`,
+          role: 'assistant',
+          content: finalContent,
+          timestamp: Date.now(),
+          conversation_id: newConvId,
+          metadata: { tool_calls: finalToolCalls, is_agent: true }
         }
-      )
 
-      // Add assistant message
-      const assistantMessage: Message = {
-        id: `response-${Date.now()}`,
-        role: 'assistant',
-        content: fullResponse,
-        timestamp: Date.now(),
-        conversation_id: newConvId
-      }
+        setMessages((prev) => [...prev, assistantMessage])
+        setStreamingContent('')
+        setCurrentToolCalls([])
+        streamingContentRef.current = ''
+        toolCallsRef.current = []
 
-      setMessages((prev) => [...prev, assistantMessage])
-      setStreamingContent('')
+        // Refresh conversations
+        await loadConversations()
 
-      // Refresh conversations to get updated titles
-      await loadConversations()
+        // Update URL if new conversation
+        if (!currentConversation && newConvId) {
+          setCurrentConversation(newConvId)
+          navigate(`/chat/${newConvId}`)
+        }
+      } else {
+        // Normal chat mode
+        const { content: fullResponse, conversationId: newConvId } = await api.streamMessage(
+          userMessage,
+          currentConversation || undefined,
+          undefined,
+          true,
+          (chunk) => {
+            setStreamingContent((prev) => prev + chunk)
+          }
+        )
 
-      // If this was a new conversation, update the URL and state
-      if (!currentConversation && newConvId) {
-        setCurrentConversation(newConvId)
-        navigate(`/chat/${newConvId}`)
+        // Add assistant message
+        const assistantMessage: Message = {
+          id: `response-${Date.now()}`,
+          role: 'assistant',
+          content: fullResponse,
+          timestamp: Date.now(),
+          conversation_id: newConvId
+        }
+
+        setMessages((prev) => [...prev, assistantMessage])
+        setStreamingContent('')
+
+        await loadConversations()
+
+        if (!currentConversation && newConvId) {
+          setCurrentConversation(newConvId)
+          navigate(`/chat/${newConvId}`)
+        }
       }
     } catch (error) {
       console.error('Failed to send message:', error)
-      // Remove temp message on error
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMessage.id))
     } finally {
       setIsLoading(false)
       setIsStreaming(false)
+      setIsThinking(false)
     }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent): void => {
-    // Check if IME is composing (e.g., typing Chinese/Japanese)
-    // nativeEvent.isComposing is true when user is selecting characters
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault()
       handleSend()
@@ -239,30 +592,105 @@ export default function ChatPage(): JSX.Element {
 
       {/* Chat area */}
       <div className="flex-1 flex flex-col">
+        {/* Mode toggle header */}
+        <div className="border-b border-border px-4 py-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Mode:</span>
+            <div className="flex items-center bg-muted rounded-lg p-1">
+              <button
+                onClick={() => setIsAgentMode(false)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${
+                  !isAgentMode
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <MessageCircle className="w-4 h-4" />
+                Chat
+              </button>
+              <button
+                onClick={() => setIsAgentMode(true)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${
+                  isAgentMode
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Bot className="w-4 h-4" />
+                Agent
+              </button>
+            </div>
+          </div>
+          {isAgentMode && (
+            <span className="text-xs text-muted-foreground">
+              Deep memory search with tools
+            </span>
+          )}
+        </div>
+
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {messages.length === 0 && !isStreaming ? (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-              <MessageIcon className="w-16 h-16 mb-4 opacity-50" />
-              <h2 className="text-xl font-semibold mb-2">Welcome to Nemori</h2>
-              <p className="text-sm">Start a conversation or ask me anything!</p>
+              {isAgentMode ? (
+                <>
+                  <Bot className="w-16 h-16 mb-4 opacity-50" />
+                  <h2 className="text-xl font-semibold mb-2">Agent Mode</h2>
+                  <p className="text-sm text-center max-w-md">
+                    I can search through your memories using various tools to find the best answers.
+                    Try asking about past events, preferences, or activities!
+                  </p>
+                </>
+              ) : (
+                <>
+                  <MessageIcon className="w-16 h-16 mb-4 opacity-50" />
+                  <h2 className="text-xl font-semibold mb-2">Welcome to Nemori</h2>
+                  <p className="text-sm">Start a conversation or ask me anything!</p>
+                </>
+              )}
             </div>
           ) : (
             <>
               {messages.map((message) => (
-                <MessageBubble key={message.id} message={message} />
+                <div key={message.id}>
+                  {message.role === 'user' ? (
+                    <UserMessageBubble message={message} />
+                  ) : message.metadata?.is_agent ? (
+                    <AgentMessageBubble
+                      content={message.content}
+                      toolCalls={message.metadata?.tool_calls || []}
+                      isThinking={false}
+                      thinkingStep={0}
+                      isStreaming={false}
+                    />
+                  ) : (
+                    <AssistantMessageBubble message={message} />
+                  )}
+                </div>
               ))}
+
+              {/* Streaming content */}
               {isStreaming && (
-                <MessageBubble
-                  message={{
-                    id: 'streaming',
-                    role: 'assistant',
-                    content: streamingContent || '',
-                    timestamp: Date.now(),
-                    conversation_id: ''
-                  }}
-                  isStreaming
-                />
+                isAgentMode ? (
+                  <AgentMessageBubble
+                    content={streamingContent}
+                    toolCalls={currentToolCalls}
+                    isThinking={isThinking}
+                    thinkingStep={thinkingStep}
+                    isStreaming={true}
+                  />
+                ) : (
+                  <AssistantMessageBubble
+                    message={{
+                      id: 'streaming',
+                      role: 'assistant',
+                      content: streamingContent,
+                      timestamp: Date.now(),
+                      conversation_id: ''
+                    }}
+                    isStreaming={true}
+                  />
+                )
               )}
               <div ref={messagesEndRef} />
             </>
@@ -277,7 +705,7 @@ export default function ChatPage(): JSX.Element {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type a message..."
+              placeholder={isAgentMode ? "Ask me to search your memories..." : "Type a message..."}
               rows={1}
               className="flex-1 resize-none rounded-lg border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
               disabled={isLoading}
@@ -301,58 +729,44 @@ export default function ChatPage(): JSX.Element {
   )
 }
 
-function MessageBubble({
+// User message bubble - with background
+function UserMessageBubble({ message }: { message: Message }): JSX.Element {
+  return (
+    <div className="flex justify-end message-enter">
+      <div className="max-w-[80%]">
+        <div className="rounded-2xl px-4 py-3 bg-primary text-primary-foreground">
+          <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Assistant message bubble - Claude style without background
+function AssistantMessageBubble({
   message,
   isStreaming = false
 }: {
   message: Message
   isStreaming?: boolean
 }): JSX.Element {
-  const isUser = message.role === 'user'
-
-  const formatTime = (timestamp: number) => {
-    return new Date(timestamp).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
-
   return (
-    <div
-      className={`flex ${isUser ? 'justify-end' : 'justify-start'} message-enter group`}
-    >
-      <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} max-w-[80%]`}>
-        <div
-          className={`rounded-2xl px-4 py-3 ${
-            isUser
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-muted text-foreground'
-          }`}
-        >
-          {isUser ? (
-            <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-          ) : (
-            <div className="markdown-content text-sm">
-              {isStreaming && !message.content ? (
-                <span className="inline-flex items-center gap-1 text-muted-foreground">
-                  <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                </span>
-              ) : (
-                <>
-                  <MarkdownContent content={message.content} />
-                  {isStreaming && (
-                    <span className="inline-block w-2 h-4 bg-primary/70 animate-pulse ml-0.5 align-middle" />
-                  )}
-                </>
-              )}
-            </div>
-          )}
-        </div>
-        <span className="text-[10px] text-muted-foreground mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {formatTime(message.timestamp)}
-        </span>
+    <div className="flex justify-start message-enter">
+      <div className="max-w-[85%] prose prose-sm max-w-none text-foreground">
+        {isStreaming && !message.content ? (
+          <span className="inline-flex items-center gap-1 text-muted-foreground">
+            <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+            <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+            <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+          </span>
+        ) : (
+          <>
+            <MarkdownContent content={message.content} />
+            {isStreaming && (
+              <span className="inline-block w-2 h-4 bg-primary/70 animate-pulse ml-0.5 align-middle" />
+            )}
+          </>
+        )}
       </div>
     </div>
   )

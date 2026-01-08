@@ -1,5 +1,5 @@
 """
-Profile Agent - Maintains a structured user profile with anti-truncation design
+Profile Manager - Maintains a structured user profile with anti-truncation design
 
 Key Design Principles:
 1. Hierarchical structure with category limits
@@ -85,10 +85,10 @@ class ProfileItem:
         return (self.importance * 0.5) + (recency_score * 0.3) + (freq_score * 0.2)
 
 
-class ProfileAgent:
-    """Agent for maintaining structured user profiles"""
+class ProfileManager:
+    """Manager for maintaining structured user profiles"""
 
-    _instance: Optional["ProfileAgent"] = None
+    _instance: Optional["ProfileManager"] = None
 
     def __init__(self):
         self.db = Database.get_instance()
@@ -96,7 +96,7 @@ class ProfileAgent:
         self._profile_cache: Optional[Dict[str, List[ProfileItem]]] = None
 
     @classmethod
-    def get_instance(cls) -> "ProfileAgent":
+    def get_instance(cls) -> "ProfileManager":
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
@@ -494,3 +494,7 @@ Return only valid JSON."""
             ]
             for category, items in profile.items()
         }
+
+
+# Backward compatibility alias
+ProfileAgent = ProfileManager

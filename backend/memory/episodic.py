@@ -1,5 +1,7 @@
 """
-Episodic Agent - Creates narrative memories from message batches
+Episodic Processor - Creates narrative memories from message batches
+
+This is a fixed workflow that transforms raw event data into coherent episodic memories.
 """
 
 import uuid
@@ -14,8 +16,8 @@ from services.llm_service import LLMService
 from utils.image import compress_images_for_llm, load_image_as_base64
 
 
-class EpisodicAgent:
-    """Agent for creating episodic memories from message batches"""
+class EpisodicProcessor:
+    """Processor for creating episodic memories from message batches"""
 
     def __init__(self):
         self.db = Database.get_instance()
@@ -245,7 +247,7 @@ Return your response in JSON format:
 
         # Compress images for LLM (PNG -> JPEG, resize)
         if image_urls:
-            print(f"EpisodicAgent: Collected {len(image_urls)} screenshots, compressing for LLM...")
+            print(f"EpisodicProcessor: Collected {len(image_urls)} screenshots, compressing for LLM...")
             image_urls = compress_images_for_llm(image_urls)
 
         return image_urls
@@ -496,3 +498,7 @@ Return your response in JSON format:
             return 0.0
 
         return dot_product / (norm_a * norm_b)
+
+
+# Backward compatibility alias
+EpisodicAgent = EpisodicProcessor

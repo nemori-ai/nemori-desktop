@@ -1,10 +1,10 @@
 """
-Memory Manager - Coordinates batch processing and memory generation
+Memory Orchestrator - Coordinates batch processing and memory generation
 
 Features:
 - Persistent queue to protect against data loss on crash
 - Batch processing with configurable size
-- Agent orchestration for episodic and semantic memory generation
+- Orchestration of memory generation pipelines
 """
 
 import asyncio
@@ -13,25 +13,25 @@ from typing import Optional, List, Dict, Any
 
 from storage.database import Database
 from config.settings import settings
-from .episodic_agent import EpisodicAgent
-from .semantic_agent import SemanticAgent
-from .main_agent import MainAgent
+from .episodic import EpisodicProcessor
+from .semantic import SemanticExtractor
+from .segmentation import EventSegmenter
 
 
 # Queue persistence key
 QUEUE_PERSISTENCE_KEY = "memory_manager_queue"
 
 
-class MemoryManager:
-    """Coordinates memory processing and agent orchestration"""
+class MemoryOrchestrator:
+    """Orchestrates memory processing and pipeline coordination"""
 
-    _instance: Optional["MemoryManager"] = None
+    _instance: Optional["MemoryOrchestrator"] = None
 
     def __init__(self):
         self.db = Database.get_instance()
-        self.episodic_agent = EpisodicAgent()
-        self.semantic_agent = SemanticAgent()
-        self.main_agent = MainAgent()
+        self.episodic_processor = EpisodicProcessor()
+        self.semantic_extractor = SemanticExtractor()
+        self.event_segmenter = EventSegmenter()
 
         self._batch_queue: List[str] = []  # Message IDs waiting to be processed
         self._batch_size = settings.batch_size
@@ -41,7 +41,7 @@ class MemoryManager:
         self._queue_loaded = False
 
     @classmethod
-    def get_instance(cls) -> "MemoryManager":
+    def get_instance(cls) -> "MemoryOrchestrator":
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
@@ -118,10 +118,10 @@ class MemoryManager:
             # Get message IDs to process
             item_ids = self._batch_queue[:batch_size]
 
-            print(f"Processing batch of {len(item_ids)} items with main agent")
+            print(f"Processing batch of {len(item_ids)} items with event segmenter")
 
-            # Use main agent to analyze and segment the event sequence
-            segmentations = await self.main_agent.analyze_event_sequence(item_ids)
+            # Use event segmenter to analyze and segment the event sequence
+            segmentations = await self.event_segmenter.analyze_event_sequence(item_ids)
 
             processed_count = 0
 
@@ -133,7 +133,7 @@ class MemoryManager:
                     print(f"Creating episodic memory for segment of {len(segment_ids)} items: {segmentation.reason}")
 
                     # Create episodic memory
-                    episodic_memory = await self.episodic_agent.create_from_messages(
+                    episodic_memory = await self.episodic_processor.create_from_messages(
                         segment_ids,
                         summary=segmentation.summary if segmentation.summary else None
                     )
@@ -144,7 +144,7 @@ class MemoryManager:
 
                     # Create semantic memories from the same segment
                     try:
-                        semantic_memories = await self.semantic_agent.create_from_segment(
+                        semantic_memories = await self.semantic_extractor.create_from_segment(
                             segment_ids,
                             summary=segmentation.summary,
                             top_n=5,
@@ -152,7 +152,7 @@ class MemoryManager:
                         )
                         print(f"Created {len(semantic_memories)} semantic memories")
                     except Exception as e:
-                        print(f"Semantic agent failed: {e}")
+                        print(f"Semantic extractor failed: {e}")
 
                     processed_count += len(segment_ids)
 
@@ -271,7 +271,7 @@ class MemoryManager:
         if not memory:
             raise ValueError("Memory not found")
 
-        embedding = await self.episodic_agent.generate_embedding(memory['content'])
+        embedding = await self.episodic_processor.generate_embedding(memory['content'])
 
         # Update in vector store
         from storage.vector_store import VectorStore
@@ -289,3 +289,7 @@ class MemoryManager:
         )
 
         print(f"Recalculated embedding for memory: {memory['title']}")
+
+
+# Backward compatibility alias
+MemoryManager = MemoryOrchestrator

@@ -16,7 +16,8 @@ from PIL import Image
 
 from config.settings import settings
 from storage.database import Database
-from agents.memory_manager import MemoryManager
+# Lazy import to avoid circular dependency
+# from memory import MemoryOrchestrator  # Imported in capture_now()
 
 
 class ScreenshotService:
@@ -207,7 +208,8 @@ class ScreenshotService:
 
                 # Notify memory manager for batch processing
                 try:
-                    memory_manager = MemoryManager.get_instance()
+                    from memory import MemoryOrchestrator
+                    memory_manager = MemoryOrchestrator.get_instance()
                     await memory_manager.on_screenshot_captured(screenshot_data)
                 except Exception as e:
                     print(f"Failed to notify memory manager: {e}")

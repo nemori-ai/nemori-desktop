@@ -1,5 +1,7 @@
 """
-Visualization Agent - Generates visualization data from memories
+Visualization Generator - Generates visualization data from memories
+
+This is a fixed workflow that transforms memory data into visualization-ready formats.
 """
 
 from datetime import datetime, timedelta
@@ -10,17 +12,17 @@ from storage.database import Database
 from storage.vector_store import VectorStore
 
 
-class VisualizationAgent:
-    """Agent for generating visualization data from memories"""
+class VisualizationGenerator:
+    """Generator for creating visualization data from memories"""
 
-    _instance: Optional["VisualizationAgent"] = None
+    _instance: Optional["VisualizationGenerator"] = None
 
     def __init__(self):
         self.db = Database.get_instance()
         self.vector_store = VectorStore.get_instance()
 
     @classmethod
-    def get_instance(cls) -> "VisualizationAgent":
+    def get_instance(cls) -> "VisualizationGenerator":
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
@@ -306,3 +308,7 @@ class VisualizationAgent:
                 'weekly_semantic': semantic_week
             }
         }
+
+
+# Backward compatibility alias
+VisualizationAgent = VisualizationGenerator

@@ -3,30 +3,40 @@ name = "nemori-backend"
 version = "1.0.0"
 description = "Nemori AI Memory Assistant - Backend Service"
 authors = [{ name = "FellouAI" }]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.109.0",
-    "uvicorn[standard]>=0.27.0",
-    "pydantic>=2.5.0",
-    "pydantic-settings>=2.1.0",
-    "python-multipart>=0.0.6",
-    "openai>=1.10.0",
-    "chromadb>=0.4.22",
-    "pillow>=10.2.0",
+    # Web framework
+    "fastapi>=0.128.0",
+    "uvicorn[standard]>=0.40.0",
+    "pydantic>=2.12.0",
+    "pydantic-settings>=2.12.0",
+    "python-multipart>=0.0.20",
+    # AI/LLM
+    "openai>=1.60.0",
+    "langchain>=1.2.0",
+    "langchain-core>=1.2.0",
+    "langchain-openai>=1.1.0",
+    "langgraph>=0.5.0",
+    # Vector store
+    "chromadb>=1.0.0",
+    # Image processing
+    "pillow>=11.0.0",
     "imagehash>=4.3.1",
     "mss>=9.0.1",
-    "aiofiles>=23.2.1",
+    # Async/IO
+    "aiofiles>=24.0.0",
+    "websockets>=14.0",
+    "httpx>=0.28.0",
+    # Utils
     "python-dotenv>=1.0.0",
-    "websockets>=12.0",
-    "httpx>=0.26.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "black>=24.1.0",
-    "isort>=5.13.0",
-    "pytest>=7.4.0",
-    "pytest-asyncio>=0.23.0",
+    "black>=25.0.0",
+    "isort>=6.0.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
 ]
 
 [build-system]
@@ -39,7 +49,7 @@ exclude = ["*.pyc", "__pycache__", "*.egg-info"]
 
 [tool.black]
 line-length = 100
-target-version = ["py310"]
+target-version = ["py312"]
 
 [tool.isort]
 profile = "black"

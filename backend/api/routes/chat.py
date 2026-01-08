@@ -111,12 +111,20 @@ async def send_message(request: ChatRequest):
             "conversation_id": conversation_id
         })
 
-        # Add to memory batch for processing
+        # Add both user and assistant messages to memory batch for processing
         await memory.add_to_batch({
             "id": user_message_id,
             "role": "user",
             "content": request.content,
-            "timestamp": timestamp
+            "timestamp": timestamp,
+            "conversation_id": conversation_id
+        })
+        await memory.add_to_batch({
+            "id": assistant_message_id,
+            "role": "assistant",
+            "content": response_content,
+            "timestamp": assistant_timestamp,
+            "conversation_id": conversation_id
         })
 
         # Update conversation title to user's first message
@@ -203,11 +211,28 @@ async def stream_message(request: ChatRequest):
 
         # Save complete response
         assistant_message_id = str(uuid.uuid4())
+        assistant_timestamp = int(datetime.now().timestamp() * 1000)
         await db.save_message({
             "id": assistant_message_id,
             "role": "assistant",
             "content": full_response,
-            "timestamp": int(datetime.now().timestamp() * 1000),
+            "timestamp": assistant_timestamp,
+            "conversation_id": conversation_id
+        })
+
+        # Add both user and assistant messages to memory batch for processing
+        await memory.add_to_batch({
+            "id": user_message_id,
+            "role": "user",
+            "content": user_content,
+            "timestamp": timestamp,
+            "conversation_id": conversation_id
+        })
+        await memory.add_to_batch({
+            "id": assistant_message_id,
+            "role": "assistant",
+            "content": full_response,
+            "timestamp": assistant_timestamp,
             "conversation_id": conversation_id
         })
 

@@ -445,6 +445,104 @@ class ApiService {
     return this.request('/visualization/stats')
   }
 
+  // ==================== Agent API ====================
+
+  async getAgentInfo(): Promise<AgentInfo> {
+    return this.request('/agent/info')
+  }
+
+  async getAgentTools(): Promise<{ tools: AgentToolInfo[] }> {
+    return this.request('/agent/tools')
+  }
+
+  async streamAgentChat(
+    content: string,
+    conversationId?: string,
+    maxSteps: number = 10,
+    onEvent: (event: AgentStreamEvent) => void = () => {}
+  ): Promise<{ conversationId: string; sessionId: string }> {
+    const url = `${this.baseUrl}/api/agent/chat`
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        content,
+        conversation_id: conversationId,
+        config: { max_steps: maxSteps }
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    // Get IDs from response headers
+    const newConversationId = response.headers.get('X-Conversation-Id') || conversationId || ''
+    const sessionId = response.headers.get('X-Session-Id') || ''
+
+    const reader = response.body?.getReader()
+    const decoder = new TextDecoder('utf-8')
+    let buffer = ''
+
+    if (reader) {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) {
+          const remaining = decoder.decode()
+          if (remaining) buffer += remaining
+          break
+        }
+
+        const chunk = decoder.decode(value, { stream: true })
+        buffer += chunk
+
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6)
+            if (data === '[DONE]') continue
+            try {
+              const event = JSON.parse(data) as AgentStreamEvent
+              onEvent(event)
+            } catch {
+              // Ignore parse errors
+            }
+          }
+        }
+      }
+
+      // Process any remaining data
+      if (buffer.startsWith('data: ')) {
+        const data = buffer.slice(6)
+        if (data !== '[DONE]') {
+          try {
+            const event = JSON.parse(data) as AgentStreamEvent
+            onEvent(event)
+          } catch {
+            // Ignore parse errors
+          }
+        }
+      }
+    }
+
+    return { conversationId: newConversationId, sessionId }
+  }
+
+  async getAgentSessions(conversationId?: string, limit: number = 20): Promise<AgentSession[]> {
+    const params = new URLSearchParams({ limit: String(limit) })
+    if (conversationId) params.append('conversation_id', conversationId)
+    return this.request(`/agent/sessions?${params}`)
+  }
+
+  async getAgentSessionDetails(sessionId: string): Promise<AgentSessionDetails> {
+    return this.request(`/agent/sessions/${sessionId}`)
+  }
+
   // ==================== Health Check ====================
 
   async checkHealth(): Promise<{
@@ -693,4 +791,80 @@ export interface PaginatedResponse<T> {
   page: number
   page_size: number
   total_pages: number
+}
+
+// Agent Types
+export interface AgentInfo {
+  available_tools: Record<string, string>
+  max_steps: number
+  version: string
+}
+
+export interface AgentToolInfo {
+  name: string
+  description: string
+  input_schema?: Record<string, any>
+}
+
+export type AgentEventType =
+  | 'session_start'
+  | 'session_end'
+  | 'thinking_start'
+  | 'thinking_chunk'
+  | 'thinking_end'
+  | 'tool_call_start'
+  | 'tool_call_args'
+  | 'tool_call_result'
+  | 'tool_call_error'
+  | 'response_start'
+  | 'response_chunk'
+  | 'response_end'
+  | 'error'
+
+export interface AgentStreamEvent {
+  type: AgentEventType
+  session_id: string
+  timestamp: number
+  step?: number
+  tool_call_id?: string
+  data: Record<string, any>
+}
+
+export interface AgentToolCall {
+  id: string
+  session_id: string
+  step: number
+  tool_name: string
+  tool_args: Record<string, any>
+  status: 'pending' | 'running' | 'completed' | 'error'
+  result?: any
+  error?: string
+  started_at?: number
+  completed_at?: number
+  duration_ms?: number
+}
+
+export interface AgentSession {
+  session_id: string
+  conversation_id: string
+  status: string
+  current_step: number
+  tool_calls_count: number
+  created_at: number
+  completed_at?: number
+}
+
+export interface AgentSessionDetails {
+  session: {
+    id: string
+    conversation_id: string
+    status: string
+    current_step: number
+    max_steps: number
+    created_at: number
+    updated_at: number
+    started_at?: number
+    completed_at?: number
+  }
+  tool_calls: AgentToolCall[]
 }

@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from agents.profile_agent import ProfileAgent
+from memory import ProfileManager
 
 router = APIRouter()
 
@@ -25,7 +25,7 @@ class RemoveItemRequest(BaseModel):
 @router.get("/")
 async def get_profile():
     """Get the full user profile"""
-    agent = ProfileAgent.get_instance()
+    agent = ProfileManager.get_instance()
     profile = await agent.get_full_profile()
     return {"profile": profile}
 
@@ -33,7 +33,7 @@ async def get_profile():
 @router.get("/summary")
 async def get_profile_summary(max_chars: int = 800):
     """Get a compact profile summary"""
-    agent = ProfileAgent.get_instance()
+    agent = ProfileManager.get_instance()
     summary = await agent.get_profile_summary(max_chars=max_chars)
     return {"summary": summary}
 
@@ -41,7 +41,7 @@ async def get_profile_summary(max_chars: int = 800):
 @router.get("/context")
 async def get_profile_for_context():
     """Get profile formatted for chat context"""
-    agent = ProfileAgent.get_instance()
+    agent = ProfileManager.get_instance()
     context = await agent.get_profile_for_context()
     return context
 
@@ -49,7 +49,7 @@ async def get_profile_for_context():
 @router.post("/update")
 async def update_profile_from_memories(recent_count: int = 20):
     """Update profile from recent semantic memories"""
-    agent = ProfileAgent.get_instance()
+    agent = ProfileManager.get_instance()
     result = await agent.update_from_memories(recent_count=recent_count)
     return {"success": True, **result}
 
@@ -57,7 +57,7 @@ async def update_profile_from_memories(recent_count: int = 20):
 @router.post("/add")
 async def add_profile_item(request: AddItemRequest):
     """Manually add a profile item"""
-    agent = ProfileAgent.get_instance()
+    agent = ProfileManager.get_instance()
     success = await agent.add_manual_item(
         category=request.category,
         content=request.content,
@@ -69,7 +69,7 @@ async def add_profile_item(request: AddItemRequest):
 @router.post("/remove")
 async def remove_profile_item(request: RemoveItemRequest):
     """Remove a profile item"""
-    agent = ProfileAgent.get_instance()
+    agent = ProfileManager.get_instance()
     success = await agent.remove_item(
         category=request.category,
         content=request.content
@@ -80,6 +80,6 @@ async def remove_profile_item(request: RemoveItemRequest):
 @router.delete("/")
 async def clear_profile():
     """Clear all profile data"""
-    agent = ProfileAgent.get_instance()
+    agent = ProfileManager.get_instance()
     await agent.clear_profile()
     return {"success": True}

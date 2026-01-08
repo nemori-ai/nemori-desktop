@@ -138,6 +138,22 @@ class LLMService:
         """Check if LLM service is configured (at least chat model)"""
         return self.is_chat_configured()
 
+    # Public properties for accessing chat model config
+    @property
+    def model(self) -> str:
+        """Get the current chat model name"""
+        return self._chat_model
+
+    @property
+    def api_key(self) -> str:
+        """Get the current chat API key"""
+        return self._chat_api_key
+
+    @property
+    def base_url(self) -> str:
+        """Get the current chat base URL"""
+        return self._chat_base_url
+
     # Chat model setters
     def set_chat_api_key(self, api_key: str) -> None:
         """Set chat API key and reinitialize client"""

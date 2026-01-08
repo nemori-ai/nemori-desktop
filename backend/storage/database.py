@@ -155,6 +155,65 @@ class Database:
             )
         """)
 
+        # Agent sessions table
+        await self._connection.execute("""
+            CREATE TABLE IF NOT EXISTS agent_sessions (
+                id TEXT PRIMARY KEY,
+                conversation_id TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'idle',
+                current_step INTEGER DEFAULT 0,
+                max_steps INTEGER DEFAULT 10,
+                config TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                started_at INTEGER,
+                completed_at INTEGER
+            )
+        """)
+        await self._connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_agent_sessions_conversation ON agent_sessions(conversation_id)"
+        )
+
+        # Tool calls table
+        await self._connection.execute("""
+            CREATE TABLE IF NOT EXISTS tool_calls (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                step INTEGER NOT NULL,
+                tool_name TEXT NOT NULL,
+                tool_args TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                result TEXT,
+                error TEXT,
+                started_at INTEGER,
+                completed_at INTEGER,
+                duration_ms INTEGER,
+                FOREIGN KEY (session_id) REFERENCES agent_sessions(id)
+            )
+        """)
+        await self._connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_tool_calls_session ON tool_calls(session_id)"
+        )
+
+        # Agent messages table
+        await self._connection.execute("""
+            CREATE TABLE IF NOT EXISTS agent_messages (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                conversation_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT,
+                thinking TEXT,
+                tool_calls TEXT,
+                tool_call_id TEXT,
+                timestamp INTEGER NOT NULL,
+                FOREIGN KEY (session_id) REFERENCES agent_sessions(id)
+            )
+        """)
+        await self._connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_agent_messages_session ON agent_messages(session_id)"
+        )
+
     def is_connected(self) -> bool:
         return self._connection is not None
 
@@ -300,7 +359,17 @@ class Database:
             (conversation_id, limit),
         )
         rows = await cursor.fetchall()
-        return [dict(row) for row in rows]
+        results = []
+        for row in rows:
+            msg = dict(row)
+            # Parse metadata JSON
+            if msg.get('metadata') and isinstance(msg['metadata'], str):
+                try:
+                    msg['metadata'] = json.loads(msg['metadata'])
+                except:
+                    pass
+            results.append(msg)
+        return results
 
     async def get_recent_messages(self, limit: int = 50) -> List[Dict[str, Any]]:
         cursor = await self._connection.execute(

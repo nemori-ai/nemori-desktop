@@ -56,3 +56,4 @@ htmlcov/
 venv/
 .venv/
 env/
+CLAUDE.md
