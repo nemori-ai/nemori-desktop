@@ -293,9 +293,13 @@ class AgentExecutor:
         """Stream agent execution events.
 
         This method wraps LangChain's agent streaming to emit our custom events.
+        Handles parallel tool execution by tracking all tool calls and their results.
         """
         step = 0
         thinking_start_time = None
+        processed_tool_calls = set()  # Track tool calls we've already emitted start events for
+        processed_tool_results = set()  # Track tool results we've already processed
+        emitted_response = False  # Track if we've already emitted the final response
 
         try:
             # Use LangChain's native streaming
@@ -304,166 +308,143 @@ class AgentExecutor:
                 stream_mode="values"
             ):
                 # Process each streamed event
-                latest_messages = event.get("messages", [])
-                if not latest_messages:
+                all_messages = event.get("messages", [])
+                if not all_messages:
                     continue
 
-                latest_message = latest_messages[-1]
+                # Process ALL messages to find tool calls and results
+                # This correctly handles parallel tool execution
+                for msg in all_messages:
+                    # Check for tool calls (AIMessage with tool_calls)
+                    if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                        # Log parallel tool calls
+                        if len(msg.tool_calls) > 1:
+                            new_calls = [tc for tc in msg.tool_calls if tc.get('id') not in processed_tool_calls]
+                            if new_calls:
+                                tool_names = [tc.get('name', 'unknown') for tc in new_calls]
+                                logger.info(f"Parallel tool calls: {tool_names}")
 
-                # Check for tool calls
-                if hasattr(latest_message, 'tool_calls') and latest_message.tool_calls:
-                    # Log parallel tool calls for debugging
-                    if len(latest_message.tool_calls) > 1:
-                        tool_names = [tc.get('name', 'unknown') for tc in latest_message.tool_calls]
-                        logger.info(
-                            f"Parallel tool calls detected: {tool_names}. "
-                            "LangGraph will execute all and wait for completion."
-                        )
+                        for tool_call in msg.tool_calls:
+                            tool_call_id = tool_call.get('id', '')
 
-                    for tool_call in latest_message.tool_calls:
-                        step += 1
-                        session.current_step = step
+                            # Skip if we already processed this tool call
+                            if tool_call_id in processed_tool_calls:
+                                continue
 
-                        # Emit thinking start
-                        if thinking_start_time is None:
-                            thinking_start_time = time.time()
-                            thinking_start = StreamEvent.thinking_start(session.id, step)
-                            yield thinking_start
-                            if self.on_event:
-                                self.on_event(thinking_start)
-
-                        tool_name = tool_call.get('name', 'unknown')
-                        tool_args = tool_call.get('args', {})
-                        tool_call_id = tool_call.get('id', str(uuid.uuid4()))
-
-                        # Create tool call record
-                        tc = ToolCall(
-                            session_id=session.id,
-                            step=step,
-                            tool_name=tool_name,
-                            tool_args=tool_args
-                        )
-                        tc.id = tool_call_id
-                        session.add_tool_call(tc)
-
-                        # Emit thinking end
-                        if thinking_start_time:
-                            thinking_duration = int((time.time() - thinking_start_time) * 1000)
-                            thinking_end = StreamEvent.thinking_end(session.id, step, thinking_duration)
-                            yield thinking_end
-                            if self.on_event:
-                                self.on_event(thinking_end)
-                            thinking_start_time = None
-
-                        # Emit tool call start
-                        tool_start_event = StreamEvent.tool_call_start(
-                            session_id=session.id,
-                            step=step,
-                            tool_call_id=tool_call_id,
-                            tool_name=tool_name
-                        )
-                        yield tool_start_event
-                        if self.on_event:
-                            self.on_event(tool_start_event)
-
-                        # Emit tool call args
-                        tool_args_event = StreamEvent.tool_call_args(
-                            session_id=session.id,
-                            step=step,
-                            tool_call_id=tool_call_id,
-                            args=tool_args
-                        )
-                        yield tool_args_event
-                        if self.on_event:
-                            self.on_event(tool_args_event)
-
-                        tc.start()
-                        thinking_start_time = time.time()
-
-                # Check for tool results
-                elif isinstance(latest_message, ToolMessage):
-                    tool_call_id = latest_message.tool_call_id
-                    tool_result = latest_message.content
-
-                    # Find matching tool call
-                    tc = next(
-                        (t for t in session.tool_calls if t.id == tool_call_id),
-                        None
-                    )
-
-                    if tc:
-                        if "error" in str(tool_result).lower() and "success" not in str(tool_result):
-                            tc.fail(str(tool_result))
-                            tool_error_event = StreamEvent.tool_call_error(
-                                session_id=session.id,
-                                step=tc.step,
-                                tool_call_id=tool_call_id,
-                                error=str(tool_result)
-                            )
-                            yield tool_error_event
-                            if self.on_event:
-                                self.on_event(tool_error_event)
-                        else:
-                            tc.complete(tool_result)
-                            tool_result_event = StreamEvent.tool_call_result(
-                                session_id=session.id,
-                                step=tc.step,
-                                tool_call_id=tool_call_id,
-                                result=tool_result,
-                                duration_ms=tc.duration_ms or 0
-                            )
-                            yield tool_result_event
-                            if self.on_event:
-                                self.on_event(tool_result_event)
-
-                # Check for final response (AIMessage without tool calls)
-                elif isinstance(latest_message, AIMessage):
-                    if not hasattr(latest_message, 'tool_calls') or not latest_message.tool_calls:
-                        content = latest_message.content
-                        if content:
+                            processed_tool_calls.add(tool_call_id)
                             step += 1
+                            session.current_step = step
 
-                            # Emit thinking end if still thinking
+                            # Emit thinking start (only once per batch)
+                            if thinking_start_time is None:
+                                thinking_start_time = time.time()
+                                yield StreamEvent.thinking_start(session.id, step)
+
+                            tool_name = tool_call.get('name', 'unknown')
+                            tool_args = tool_call.get('args', {})
+
+                            # Create tool call record
+                            tc = ToolCall(
+                                session_id=session.id,
+                                step=step,
+                                tool_name=tool_name,
+                                tool_args=tool_args
+                            )
+                            tc.id = tool_call_id
+                            session.add_tool_call(tc)
+
+                            # Emit thinking end
                             if thinking_start_time:
                                 thinking_duration = int((time.time() - thinking_start_time) * 1000)
-                                thinking_end = StreamEvent.thinking_end(session.id, step, thinking_duration)
-                                yield thinking_end
-                                if self.on_event:
-                                    self.on_event(thinking_end)
+                                yield StreamEvent.thinking_end(session.id, step, thinking_duration)
                                 thinking_start_time = None
 
-                            # Emit response start
-                            response_start = StreamEvent.response_start(session.id, step)
-                            yield response_start
-                            if self.on_event:
-                                self.on_event(response_start)
+                            # Emit tool call start and args
+                            yield StreamEvent.tool_call_start(
+                                session_id=session.id,
+                                step=step,
+                                tool_call_id=tool_call_id,
+                                tool_name=tool_name
+                            )
+                            yield StreamEvent.tool_call_args(
+                                session_id=session.id,
+                                step=step,
+                                tool_call_id=tool_call_id,
+                                args=tool_args
+                            )
 
-                            # Emit response as chunks
-                            chunk_size = 50
-                            for i in range(0, len(content), chunk_size):
-                                chunk = content[i:i + chunk_size]
-                                chunk_event = StreamEvent.response_chunk(session.id, step, chunk)
-                                yield chunk_event
-                                if self.on_event:
-                                    self.on_event(chunk_event)
+                            tc.start()
+                            thinking_start_time = time.time()
 
-                            # Emit response end
-                            response_end = StreamEvent.response_end(session.id, step, content)
-                            yield response_end
-                            if self.on_event:
-                                self.on_event(response_end)
+                    # Check for tool results (ToolMessage)
+                    elif isinstance(msg, ToolMessage):
+                        tool_call_id = msg.tool_call_id
+
+                        # Skip if we already processed this result
+                        if tool_call_id in processed_tool_results:
+                            continue
+
+                        processed_tool_results.add(tool_call_id)
+                        tool_result = msg.content
+
+                        # Find matching tool call
+                        tc = next(
+                            (t for t in session.tool_calls if t.id == tool_call_id),
+                            None
+                        )
+
+                        if tc:
+                            if "error" in str(tool_result).lower() and "success" not in str(tool_result):
+                                tc.fail(str(tool_result))
+                                yield StreamEvent.tool_call_error(
+                                    session_id=session.id,
+                                    step=tc.step,
+                                    tool_call_id=tool_call_id,
+                                    error=str(tool_result)
+                                )
+                            else:
+                                tc.complete(tool_result)
+                                yield StreamEvent.tool_call_result(
+                                    session_id=session.id,
+                                    step=tc.step,
+                                    tool_call_id=tool_call_id,
+                                    result=tool_result,
+                                    duration_ms=tc.duration_ms or 0
+                                )
+
+                    # Check for final response (AIMessage without tool calls)
+                    elif isinstance(msg, AIMessage) and not emitted_response:
+                        if not hasattr(msg, 'tool_calls') or not msg.tool_calls:
+                            content = msg.content
+                            if content:
+                                emitted_response = True
+                                step += 1
+
+                                # Emit thinking end if still thinking
+                                if thinking_start_time:
+                                    thinking_duration = int((time.time() - thinking_start_time) * 1000)
+                                    yield StreamEvent.thinking_end(session.id, step, thinking_duration)
+                                    thinking_start_time = None
+
+                                # Emit response
+                                yield StreamEvent.response_start(session.id, step)
+
+                                # Emit response as chunks
+                                chunk_size = 50
+                                for i in range(0, len(content), chunk_size):
+                                    chunk = content[i:i + chunk_size]
+                                    yield StreamEvent.response_chunk(session.id, step, chunk)
+
+                                yield StreamEvent.response_end(session.id, step, content)
 
         except Exception as e:
-            # Handle streaming errors
-            error_event = StreamEvent.error(
+            logger.error(f"Stream execution error: {e}")
+            yield StreamEvent.error(
                 session_id=session.id,
                 code="stream_error",
                 message=str(e),
                 recoverable=False
             )
-            yield error_event
-            if self.on_event:
-                self.on_event(error_event)
 
     async def _save_session(self, session: AgentSession) -> None:
         """Save session and tool calls to database.
