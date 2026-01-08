@@ -12,6 +12,11 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
 asarUnpack:
   - resources/**
+extraResources:
+  - from: "../backend-dist/${os}/"
+    to: "backend"
+    filter:
+      - "**/*"
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:

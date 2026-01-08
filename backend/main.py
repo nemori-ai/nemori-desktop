@@ -1,7 +1,13 @@
 """
 Nemori Backend - FastAPI Application Entry Point
+
+Can be run in two modes:
+1. Development: python main.py [--reload]
+2. Production (bundled): ./nemori-backend --host 127.0.0.1 --port 21978
 """
 import argparse
+import os
+import sys
 import uvicorn
 from contextlib import asynccontextmanager
 
@@ -14,6 +20,11 @@ from storage.database import Database
 from services.llm_service import LLMService
 from services.memory_service import MemoryService
 from services.screenshot_service import ScreenshotService
+
+# Support for bundled executable - set data directory from environment
+if os.environ.get('NEMORI_DATA_DIR'):
+    from pathlib import Path
+    settings.data_dir = Path(os.environ['NEMORI_DATA_DIR'])
 
 
 @asynccontextmanager
@@ -86,21 +97,35 @@ async def health():
 
 
 def main():
-    """CLI entry point"""
+    """CLI entry point - supports both development and bundled execution"""
     parser = argparse.ArgumentParser(description="Nemori Backend Server")
     parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
     parser.add_argument("--port", type=int, default=21978, help="Port to bind to")
-    parser.add_argument("--reload", action="store_true", help="Enable auto-reload")
+    parser.add_argument("--reload", action="store_true", help="Enable auto-reload (dev only)")
 
     args = parser.parse_args()
 
-    uvicorn.run(
-        "main:app",
-        host=args.host,
-        port=args.port,
-        reload=args.reload,
-        log_level="info"
-    )
+    # Check if running as bundled executable (PyInstaller)
+    is_bundled = getattr(sys, 'frozen', False)
+
+    if is_bundled:
+        # Running as bundled executable - run app directly
+        print(f"Starting Nemori Backend (bundled) on {args.host}:{args.port}")
+        uvicorn.run(
+            app,
+            host=args.host,
+            port=args.port,
+            log_level="info"
+        )
+    else:
+        # Development mode - use string reference for reload support
+        uvicorn.run(
+            "main:app",
+            host=args.host,
+            port=args.port,
+            reload=args.reload,
+            log_level="info"
+        )
 
 
 if __name__ == "__main__":

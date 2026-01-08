@@ -1,7 +1,7 @@
 import { spawn, ChildProcess } from 'child_process'
 import { app } from 'electron'
 import { join } from 'path'
-import { existsSync } from 'fs'
+import { existsSync, chmodSync } from 'fs'
 import http from 'http'
 
 export class BackendService {
@@ -9,6 +9,7 @@ export class BackendService {
   private host: string = '127.0.0.1'
   private port: number = 21978
   private isStarted: boolean = false
+  private isDev: boolean = process.env.NODE_ENV === 'development' || !app.isPackaged
 
   constructor(host?: string, port?: number) {
     if (host) this.host = host
@@ -38,70 +39,147 @@ export class BackendService {
         return true
       }
 
-      // Find Python executable and backend path
-      const pythonPath = this.findPythonPath()
-      const backendPath = this.findBackendPath()
-
-      if (!pythonPath) {
-        console.error('Python not found')
-        return false
+      // In production, use bundled executable; in development, use Python
+      if (this.isDev) {
+        return await this.startDevelopment()
+      } else {
+        return await this.startProduction()
       }
+    } catch (error) {
+      console.error('Failed to start backend:', error)
+      return false
+    }
+  }
 
-      if (!backendPath) {
-        console.error('Backend not found')
-        return false
-      }
+  private async startDevelopment(): Promise<boolean> {
+    // Find Python executable and backend path
+    const pythonPath = this.findPythonPath()
+    const backendPath = this.findBackendPath()
 
-      console.log('Starting backend with Python:', pythonPath)
-      console.log('Backend path:', backendPath)
+    if (!pythonPath) {
+      console.error('Python not found')
+      return false
+    }
 
-      // Start the backend process
-      this.process = spawn(pythonPath, ['-m', 'uvicorn', 'main:app', '--host', this.host, '--port', String(this.port)], {
+    if (!backendPath) {
+      console.error('Backend not found')
+      return false
+    }
+
+    console.log('[Dev] Starting backend with Python:', pythonPath)
+    console.log('[Dev] Backend path:', backendPath)
+
+    // Start the backend process
+    this.process = spawn(
+      pythonPath,
+      ['-m', 'uvicorn', 'main:app', '--host', this.host, '--port', String(this.port)],
+      {
         cwd: backendPath,
         env: {
           ...process.env,
           PYTHONUNBUFFERED: '1'
         },
         stdio: ['ignore', 'pipe', 'pipe']
-      })
-
-      // Handle stdout
-      this.process.stdout?.on('data', (data) => {
-        console.log('[Backend]', data.toString().trim())
-      })
-
-      // Handle stderr
-      this.process.stderr?.on('data', (data) => {
-        console.error('[Backend Error]', data.toString().trim())
-      })
-
-      // Handle process exit
-      this.process.on('exit', (code) => {
-        console.log('Backend process exited with code:', code)
-        this.isStarted = false
-        this.process = null
-      })
-
-      this.process.on('error', (err) => {
-        console.error('Backend process error:', err)
-        this.isStarted = false
-      })
-
-      // Wait for backend to be ready
-      const ready = await this.waitForReady(30000)
-      this.isStarted = ready
-
-      if (ready) {
-        console.log('Backend is ready at', this.getUrl())
-      } else {
-        console.error('Backend failed to start')
       }
+    )
 
-      return ready
-    } catch (error) {
-      console.error('Failed to start backend:', error)
-      return false
+    return await this.setupProcessHandlers()
+  }
+
+  private async startProduction(): Promise<boolean> {
+    const executablePath = this.findBundledBackend()
+
+    if (!executablePath) {
+      console.error('Bundled backend not found, falling back to Python')
+      return await this.startDevelopment()
     }
+
+    console.log('[Production] Starting bundled backend:', executablePath)
+
+    // Ensure executable has correct permissions on Unix
+    if (process.platform !== 'win32') {
+      try {
+        chmodSync(executablePath, '755')
+      } catch (e) {
+        console.warn('Could not set executable permissions:', e)
+      }
+    }
+
+    // Start the bundled backend
+    this.process = spawn(
+      executablePath,
+      ['--host', this.host, '--port', String(this.port)],
+      {
+        env: {
+          ...process.env,
+          NEMORI_DATA_DIR: app.getPath('userData')
+        },
+        stdio: ['ignore', 'pipe', 'pipe']
+      }
+    )
+
+    return await this.setupProcessHandlers()
+  }
+
+  private async setupProcessHandlers(): Promise<boolean> {
+    if (!this.process) return false
+
+    // Handle stdout
+    this.process.stdout?.on('data', (data) => {
+      console.log('[Backend]', data.toString().trim())
+    })
+
+    // Handle stderr
+    this.process.stderr?.on('data', (data) => {
+      console.error('[Backend Error]', data.toString().trim())
+    })
+
+    // Handle process exit
+    this.process.on('exit', (code) => {
+      console.log('Backend process exited with code:', code)
+      this.isStarted = false
+      this.process = null
+    })
+
+    this.process.on('error', (err) => {
+      console.error('Backend process error:', err)
+      this.isStarted = false
+    })
+
+    // Wait for backend to be ready
+    const ready = await this.waitForReady(30000)
+    this.isStarted = ready
+
+    if (ready) {
+      console.log('Backend is ready at', this.getUrl())
+    } else {
+      console.error('Backend failed to start')
+    }
+
+    return ready
+  }
+
+  private findBundledBackend(): string | null {
+    const execName = process.platform === 'win32' ? 'nemori-backend.exe' : 'nemori-backend'
+
+    // Check possible locations for bundled backend
+    const candidates = [
+      // Production: bundled in resources
+      join(process.resourcesPath || '', 'backend', execName),
+      join(process.resourcesPath || '', execName),
+      // macOS app bundle
+      join(app.getAppPath(), '..', 'backend', execName),
+      join(app.getAppPath(), 'backend', execName),
+    ]
+
+    for (const candidate of candidates) {
+      console.log('Checking bundled backend at:', candidate)
+      if (existsSync(candidate)) {
+        return candidate
+      }
+    }
+
+    return null
   }
 
   async stop(): Promise<void> {
