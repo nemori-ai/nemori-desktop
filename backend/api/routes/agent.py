@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from services.llm_service import LLMService
+from services.memory_service import MemoryService
 from storage.database import Database
 from agents.executor import AgentExecutor
 from agents.tools import get_tool_descriptions
@@ -63,6 +64,7 @@ async def agent_chat(request: AgentChatRequest):
     """
     llm = LLMService.get_instance()
     db = Database.get_instance()
+    memory = MemoryService.get_instance()
 
     if not llm.is_configured():
         raise HTTPException(
@@ -131,13 +133,30 @@ async def agent_chat(request: AgentChatRequest):
             # Save assistant response after completion
             if final_response:
                 assistant_message_id = str(uuid.uuid4())
+                assistant_timestamp = int(datetime.now().timestamp() * 1000)
                 await db.save_message({
                     "id": assistant_message_id,
                     "role": "assistant",
                     "content": final_response,
-                    "timestamp": int(datetime.now().timestamp() * 1000),
+                    "timestamp": assistant_timestamp,
                     "conversation_id": conversation_id,
                     "metadata": {"session_id": session_id, "is_agent": True}
+                })
+
+                # Add both user and assistant messages to memory batch for processing
+                await memory.add_to_batch({
+                    "id": user_message_id,
+                    "role": "user",
+                    "content": request.content,
+                    "timestamp": timestamp,
+                    "conversation_id": conversation_id
+                })
+                await memory.add_to_batch({
+                    "id": assistant_message_id,
+                    "role": "assistant",
+                    "content": final_response,
+                    "timestamp": assistant_timestamp,
+                    "conversation_id": conversation_id
                 })
 
                 # Update conversation title for new conversations
