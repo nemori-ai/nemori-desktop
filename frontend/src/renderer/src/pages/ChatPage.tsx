@@ -261,6 +261,7 @@ export default function ChatPage(): JSX.Element {
   // Refs to track latest values (to avoid stale closures)
   const streamingContentRef = useRef('')
   const toolCallsRef = useRef<AgentToolCall[]>([])
+  const currentConversationRef = useRef<string | null>(conversationId || null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -274,6 +275,7 @@ export default function ChatPage(): JSX.Element {
   useEffect(() => {
     if (conversationId) {
       setCurrentConversation(conversationId)
+      currentConversationRef.current = conversationId
       loadMessages(conversationId)
     }
   }, [conversationId])
@@ -324,6 +326,7 @@ export default function ChatPage(): JSX.Element {
   }
 
   const handleNewConversation = (): void => {
+    currentConversationRef.current = null
     setCurrentConversation(null)
     setMessages([])
     navigate('/chat')
@@ -335,9 +338,10 @@ export default function ChatPage(): JSX.Element {
       await api.deleteConversation(id)
       await loadConversations()
       if (currentConversation === id) {
-        navigate('/chat')
-        setMessages([])
+        currentConversationRef.current = null
         setCurrentConversation(null)
+        setMessages([])
+        navigate('/chat')
       }
     } catch (error) {
       console.error('Failed to delete conversation:', error)
@@ -465,12 +469,17 @@ export default function ChatPage(): JSX.Element {
         streamingContentRef.current = ''
         setIsThinking(false)
 
+        // Use ref to get the latest conversation ID (state might be stale)
+        const currentConvId = currentConversationRef.current
+        console.log('[Agent] Sending with conversationId:', currentConvId)
+
         const { conversationId: newConvId } = await api.streamAgentChat(
           userMessage,
-          currentConversation || undefined,
+          currentConvId || undefined,
           10,
           handleAgentEvent
         )
+        console.log('[Agent] Received newConvId:', newConvId)
 
         // Use refs to get the latest values (avoid stale closures)
         const finalContent = streamingContentRef.current
@@ -492,19 +501,28 @@ export default function ChatPage(): JSX.Element {
         streamingContentRef.current = ''
         toolCallsRef.current = []
 
+        // Always update conversation state and ref with the returned ID
+        // This ensures we track the correct conversation even if state hasn't updated yet
+        if (newConvId) {
+          currentConversationRef.current = newConvId
+          setCurrentConversation(newConvId)
+          // Only navigate if URL doesn't match
+          if (conversationId !== newConvId) {
+            navigate(`/chat/${newConvId}`, { replace: true })
+          }
+        }
+
         // Refresh conversations
         await loadConversations()
-
-        // Update URL if new conversation
-        if (!currentConversation && newConvId) {
-          setCurrentConversation(newConvId)
-          navigate(`/chat/${newConvId}`)
-        }
       } else {
         // Normal chat mode
+        // Use ref to get the latest conversation ID (state might be stale)
+        const currentConvId = currentConversationRef.current
+        console.log('[Chat] Sending with conversationId:', currentConvId)
+
         const { content: fullResponse, conversationId: newConvId } = await api.streamMessage(
           userMessage,
-          currentConversation || undefined,
+          currentConvId || undefined,
           undefined,
           true,
           (chunk) => {
@@ -524,12 +542,17 @@ export default function ChatPage(): JSX.Element {
         setMessages((prev) => [...prev, assistantMessage])
         setStreamingContent('')
 
-        await loadConversations()
-
-        if (!currentConversation && newConvId) {
+        // Always update conversation state and ref with the returned ID
+        if (newConvId) {
+          console.log('[Chat] Updating ref to:', newConvId)
+          currentConversationRef.current = newConvId
           setCurrentConversation(newConvId)
-          navigate(`/chat/${newConvId}`)
+          if (conversationId !== newConvId) {
+            navigate(`/chat/${newConvId}`, { replace: true })
+          }
         }
+
+        await loadConversations()
       }
     } catch (error) {
       console.error('Failed to send message:', error)

@@ -46,30 +46,82 @@ AGENT_SYSTEM_PROMPT = """You are Nemori, an intelligent personal assistant with 
 
 Current date and time: {current_datetime}
 
+## CRITICAL RULE - THINK BEFORE RESPONDING
+
+You MUST follow this workflow for EVERY user request:
+1. Call memory search tools to gather information
+2. IMMEDIATELY call the `think` tool to analyze the results (DO NOT SKIP THIS STEP)
+3. Only after thinking, provide your response to the user
+
+The `think` tool call is MANDATORY after receiving any tool results. If you skip this step, your response will be considered incomplete.
+
 You have access to the following tools to search and retrieve information from the user's memories:
 
 {tools_description}
+
+## Using the think tool
+
+Before responding to the user after receiving tool results, use the think tool as a scratchpad to:
+- List what information was retrieved from each tool
+- Check if the results actually answer the user's question
+- Identify any gaps or missing information
+- Verify temporal consistency (are dates/timelines making sense?)
+- Decide if more searches are needed or if you can respond
+
+<think_tool_workflow>
+Step 1: User asks a question
+Step 2: You call search tools (can be parallel)
+Step 3: You receive tool results
+Step 4: You MUST call think() to analyze results  <-- REQUIRED
+Step 5: Based on thinking, either search more or respond
+</think_tool_workflow>
 
 TOOL USAGE GUIDELINES:
 
 1. **Parallel Tool Calls**: You can call multiple tools simultaneously when they are independent.
    - Good: Call search_episodic_memory and search_semantic_memory at the same time for broader coverage
-   - Good: Call keyword_search and time_filter together when searching for specific terms in a time range
    - All parallel tool calls will complete before you see the results
 
-2. **Think Tool**: Use the `think` tool to pause and reason through complex situations.
-   - Use it AFTER receiving tool results to analyze and synthesize information
-   - Use it when planning a multi-step approach
-   - Use it when the situation is ambiguous and needs careful consideration
-   - The think tool helps you organize your thoughts before responding
-
-3. **Sequential Calls**: Call tools sequentially when results from one tool inform the next.
+2. **Sequential Calls**: Call tools sequentially when results from one tool inform the next.
    - Example: First get_user_profile, then search based on discovered preferences
+
+Here are some examples of what to iterate over inside the think tool:
+
+<think_tool_example_1>
+User asks: "What did I do last weekend?"
+- Retrieved 3 episodic memories from time_filter
+- Check: Do they cover Saturday AND Sunday?
+- Memory 1: Saturday morning hiking - complete
+- Memory 2: Saturday dinner with friends - complete
+- Missing: Sunday activities
+- Plan: Note the gap, or search again with adjusted time range
+</think_tool_example_1>
+
+<think_tool_example_2>
+User asks: "What are my career goals and how am I progressing?"
+- search_semantic_memory(career) returned 5 results
+- search_episodic_memory(work progress) returned 3 results
+- Synthesize findings:
+  * Goal 1: Transition to ML role (confidence: high, mentioned 3 times)
+  * Goal 2: Get promoted to senior (confidence: medium, mentioned once)
+- Cross-check with profile: Learning activities align with ML goal
+- Recent activities: Completed 2 ML courses, started a side project
+- Assessment: Good progress on Goal 1, no recent evidence for Goal 2
+</think_tool_example_2>
+
+<think_tool_example_3>
+User asks: "Have I mentioned anything about travel plans?"
+- keyword_search(['travel', 'trip', 'vacation']) returned 0 results
+- search_semantic_memory('travel plans') returned 0 results
+- Verify: Tried both keyword and semantic approaches
+- Conclusion: No travel-related memories found
+- Response plan: Inform user clearly, ask if they'd like to tell me about any plans
+</think_tool_example_3>
 
 When answering questions about the user or their past experiences:
 1. First, use the appropriate memory search tools to find relevant information
 2. Combine information from multiple sources for comprehensive answers
-3. Use the think tool to analyze results when dealing with complex questions
+3. Use the think tool to analyze results before providing your final answer
 4. Provide well-reasoned answers based on the retrieved memories
 5. If no relevant memories are found, let the user know
 
@@ -301,6 +353,9 @@ class AgentExecutor:
         processed_tool_results = set()  # Track tool results we've already processed
         emitted_response = False  # Track if we've already emitted the final response
 
+        # Track how many messages were in the initial input to skip them
+        initial_message_count = len(messages)
+
         try:
             # Use LangChain's native streaming
             async for event in agent.astream(
@@ -312,9 +367,15 @@ class AgentExecutor:
                 if not all_messages:
                     continue
 
-                # Process ALL messages to find tool calls and results
+                # Skip initial/history messages, only process new ones
+                # LangGraph returns all messages including the initial ones
+                new_messages = all_messages[initial_message_count:]
+                if not new_messages:
+                    continue
+
+                # Process only NEW messages to find tool calls and results
                 # This correctly handles parallel tool execution
-                for msg in all_messages:
+                for msg in new_messages:
                     # Check for tool calls (AIMessage with tool_calls)
                     if hasattr(msg, 'tool_calls') and msg.tool_calls:
                         # Log parallel tool calls

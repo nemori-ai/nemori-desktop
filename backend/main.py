@@ -55,6 +55,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Conversation-Id", "X-Session-Id"],  # Expose custom headers to frontend
 )
 
 # Include API routes
