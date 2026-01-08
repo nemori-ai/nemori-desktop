@@ -48,9 +48,7 @@ jobs:
 
       - name: Build Electron app for macOS x64
         working-directory: frontend
-        run: npm run build && npx electron-builder --mac --x64
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run build && npx electron-builder --mac --x64 --publish never
 
       - name: Upload macOS x64 artifacts
         uses: actions/upload-artifact@v4
@@ -98,9 +96,7 @@ jobs:
 
       - name: Build Electron app for macOS arm64
         working-directory: frontend
-        run: npm run build && npx electron-builder --mac --arm64
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run build && npx electron-builder --mac --arm64 --publish never
 
       - name: Upload macOS arm64 artifacts
         uses: actions/upload-artifact@v4
@@ -148,9 +144,7 @@ jobs:
 
       - name: Build Electron app for Windows
         working-directory: frontend
-        run: npm run build:win
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run build && npx electron-builder --win --x64 --publish never
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
