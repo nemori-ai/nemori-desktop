@@ -4,13 +4,11 @@ PyInstaller spec file for Nemori Backend
 Bundles the FastAPI backend into a single executable
 """
 
-import sys
-from PyInstaller.utils.hooks import collect_all, collect_submodules
-
 block_cipher = None
 
-# Collect all submodules for packages that need it
+# Essential hidden imports for the backend
 hiddenimports = [
+    # Uvicorn
     'uvicorn.logging',
     'uvicorn.loops',
     'uvicorn.loops.auto',
@@ -22,51 +20,60 @@ hiddenimports = [
     'uvicorn.lifespan',
     'uvicorn.lifespan.on',
     'uvicorn.lifespan.off',
+    # Web
     'httptools',
     'websockets',
-    'watchfiles',
     'email_validator',
+    # Pydantic
     'pydantic',
     'pydantic_settings',
+    'pydantic_core',
+    # FastAPI/Starlette
     'fastapi',
     'starlette',
+    'starlette.responses',
+    'starlette.routing',
+    'starlette.middleware',
+    'starlette.middleware.cors',
+    # Async
     'anyio',
+    'anyio._backends',
+    'anyio._backends._asyncio',
     'sniffio',
+    # HTTP
     'httpx',
     'httpcore',
+    # OpenAI
     'openai',
+    # LangChain - minimal
     'langchain',
+    'langchain.tools',
     'langchain_core',
+    'langchain_core.tools',
+    'langchain_core.messages',
     'langchain_openai',
     'langgraph',
+    'langgraph.prebuilt',
+    # ChromaDB
     'chromadb',
+    'chromadb.config',
+    # Image processing
     'PIL',
+    'PIL.Image',
     'imagehash',
     'mss',
+    # Utils
     'aiofiles',
     'sqlite3',
+    'multipart',
+    'python_multipart',
 ]
-
-# Add langchain submodules
-hiddenimports += collect_submodules('langchain')
-hiddenimports += collect_submodules('langchain_core')
-hiddenimports += collect_submodules('langchain_openai')
-hiddenimports += collect_submodules('langgraph')
-hiddenimports += collect_submodules('chromadb')
-hiddenimports += collect_submodules('pydantic')
-hiddenimports += collect_submodules('pydantic_core')
-
-# Collect data files
-datas = []
-chromadb_datas, chromadb_binaries, chromadb_hiddenimports = collect_all('chromadb')
-datas += chromadb_datas
-hiddenimports += chromadb_hiddenimports
 
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=chromadb_binaries,
-    datas=datas,
+    binaries=[],
+    datas=[],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
@@ -78,6 +85,8 @@ a = Analysis(
         'pytest',
         'black',
         'isort',
+        'IPython',
+        'jupyter',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -101,7 +110,7 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,  # Keep console for logging
+    console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

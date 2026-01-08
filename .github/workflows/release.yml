@@ -13,9 +13,6 @@ env:
 jobs:
   build-macos:
     runs-on: macos-latest
-    strategy:
-      matrix:
-        arch: [x64, arm64]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,41 +27,41 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller
-          pip install -e .
+          pip install .
 
       - name: Build Python backend with PyInstaller
         working-directory: backend
         run: |
-          pyinstaller nemori-backend.spec --clean
+          pyinstaller nemori-backend.spec --clean --noconfirm
           mkdir -p ../backend-dist/mac
           cp dist/nemori-backend ../backend-dist/mac/
+          chmod +x ../backend-dist/mac/nemori-backend
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm ci
+        run: npm install
 
-      - name: Build Electron app for macOS ${{ matrix.arch }}
+      - name: Build Electron app for macOS (x64)
         working-directory: frontend
-        run: |
-          if [ "${{ matrix.arch }}" = "arm64" ]; then
-            npm run build && npx electron-builder --mac --arm64
-          else
-            npm run build && npx electron-builder --mac --x64
-          fi
+        run: npm run build && npx electron-builder --mac --x64
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload macOS ${{ matrix.arch }} artifacts
+      - name: Build Electron app for macOS (arm64)
+        working-directory: frontend
+        run: npx electron-builder --mac --arm64
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-${{ matrix.arch }}-builds
+          name: macos-builds
           path: |
             frontend/dist/*.dmg
             frontend/dist/*.zip
@@ -86,26 +83,24 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller
-          pip install -e .
+          pip install .
 
       - name: Build Python backend with PyInstaller
         working-directory: backend
+        shell: bash
         run: |
-          pyinstaller nemori-backend.spec --clean
+          pyinstaller nemori-backend.spec --clean --noconfirm
           mkdir -p ../backend-dist/win
           cp dist/nemori-backend.exe ../backend-dist/win/
-        shell: bash
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm ci
+        run: npm install
 
       - name: Build Electron app for Windows
         working-directory: frontend
@@ -120,59 +115,8 @@ jobs:
           path: frontend/dist/*.exe
           if-no-files-found: error
 
-  build-linux:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install Python dependencies
-        working-directory: backend
-        run: |
-          python -m pip install --upgrade pip
-          pip install pyinstaller
-          pip install -e .
-
-      - name: Build Python backend with PyInstaller
-        working-directory: backend
-        run: |
-          pyinstaller nemori-backend.spec --clean
-          mkdir -p ../backend-dist/linux
-          cp dist/nemori-backend ../backend-dist/linux/
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Build Electron app for Linux
-        working-directory: frontend
-        run: npm run build:linux
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-builds
-          path: |
-            frontend/dist/*.AppImage
-            frontend/dist/*.deb
-          if-no-files-found: error
-
   release:
-    needs: [build-macos, build-windows, build-linux]
+    needs: [build-macos, build-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -183,17 +127,15 @@ jobs:
           path: artifacts
 
       - name: List artifacts
-        run: find artifacts -type f -name "*"
+        run: find artifacts -type f
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            artifacts/macos-x64-builds/*
-            artifacts/macos-arm64-builds/*
+            artifacts/macos-builds/*
             artifacts/windows-builds/*
-            artifacts/linux-builds/*
           draft: false
           prerelease: false
           generate_release_notes: true
