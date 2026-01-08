@@ -30,9 +30,12 @@ function App(): JSX.Element {
       theme={{
         algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
         token: {
-          colorPrimary: '#2563eb',
+          colorPrimary: '#2D5A45',
+          colorSuccess: '#2D5A45',
+          colorWarning: '#E69500',
           borderRadius: 8,
-          fontSize: 14
+          fontSize: 14,
+          colorBgContainer: isDark ? '#1E1E1E' : '#FDFCF9'
         }
       }}
     >

@@ -1,9 +1,43 @@
 import { app, shell, BrowserWindow, ipcMain, screen, nativeTheme } from 'electron'
 import { join } from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { BackendService } from './services/BackendService'
 import { TrayService } from './services/TrayService'
+
+// Replace @electron-toolkit/utils with native implementations
+// Use getter to delay app.isPackaged check until electron is ready
+const is = {
+  get dev(): boolean {
+    return process.env.NODE_ENV === 'development' || !app.isPackaged
+  }
+}
+
+const electronApp = {
+  setAppUserModelId(id: string): void {
+    if (process.platform === 'win32') {
+      app.setAppUserModelId(is.dev ? process.execPath : id)
+    }
+  }
+}
+
+const optimizer = {
+  watchWindowShortcuts(window: BrowserWindow): void {
+    window.webContents.on('before-input-event', (event, input) => {
+      if (input.type === 'keyDown') {
+        // F12 to toggle DevTools in development
+        if (input.key === 'F12' && is.dev) {
+          window.webContents.toggleDevTools()
+          event.preventDefault()
+        }
+        // Ctrl+R / Cmd+R to reload
+        if (input.key === 'r' && (input.control || input.meta)) {
+          window.webContents.reload()
+          event.preventDefault()
+        }
+      }
+    })
+  }
+}
 
 let mainWindow: BrowserWindow | null = null
 let trayService: TrayService | null = null

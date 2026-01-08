@@ -11,12 +11,6 @@ export async function initializeApi(): Promise<void> {
   }
 }
 
-interface ApiResponse<T> {
-  success?: boolean
-  data?: T
-  error?: string
-}
-
 class ApiService {
   private baseUrl: string = BASE_URL
 

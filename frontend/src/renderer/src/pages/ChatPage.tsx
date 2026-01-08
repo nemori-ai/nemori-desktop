@@ -71,9 +71,9 @@ function ToolCallDisplay({
 }): JSX.Element {
   const statusColors = {
     pending: 'text-muted-foreground',
-    running: 'text-blue-500',
-    completed: 'text-green-500',
-    error: 'text-red-500'
+    running: 'text-primary',
+    completed: 'text-primary',
+    error: 'text-destructive'
   }
 
   const formatToolName = (name: string) => {
@@ -91,10 +91,10 @@ function ToolCallDisplay({
   }
 
   return (
-    <div className="border border-border rounded-lg overflow-hidden bg-muted/30 my-2 max-w-full">
+    <div className="rounded-lg overflow-hidden glass-card my-2 max-w-full">
       <button
         onClick={onToggle}
-        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted/50 transition-colors text-left"
+        className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-muted/40 transition-all duration-200 text-left"
       >
         {isExpanded ? (
           <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />
@@ -108,7 +108,7 @@ function ToolCallDisplay({
           {formatToolName(toolCall.tool_name)}
         </span>
         {toolCall.status === 'running' && (
-          <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
         )}
         {toolCall.duration_ms && (
           <span className="text-xs text-muted-foreground">
@@ -159,9 +159,9 @@ function ThinkingIndicator({ step }: { step: number }): JSX.Element {
   return (
     <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
       <div className="flex items-center gap-1">
-        <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-        <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
-        <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
+        <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+        <span className="w-2 h-2 bg-primary rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
+        <span className="w-2 h-2 bg-primary rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
       </div>
       <span>Thinking (Step {step})...</span>
     </div>
@@ -550,27 +550,27 @@ export default function ChatPage(): JSX.Element {
 
   return (
     <div className="flex h-full">
-      {/* Conversations sidebar */}
-      <div className="w-64 border-r border-border flex flex-col bg-muted/30">
-        <div className="p-3 border-b border-border">
+      {/* Conversations sidebar with glass effect */}
+      <div className="w-64 flex flex-col glass-sidebar">
+        <div className="p-4 border-b border-border/50">
           <button
             onClick={handleNewConversation}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all duration-200 shadow-warm-sm"
           >
             <Plus className="w-4 h-4" />
             <span>New Chat</span>
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
           {conversations.map((conv) => (
             <div
               key={conv.id}
               onClick={() => navigate(`/chat/${conv.id}`)}
-              className={`group flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+              className={`group flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200 ${
                 currentConversation === conv.id
-                  ? 'bg-primary/10 text-primary'
-                  : 'hover:bg-muted text-foreground'
+                  ? 'bg-primary/12 text-primary shadow-warm-sm'
+                  : 'hover:bg-muted/60 text-foreground'
               }`}
             >
               <div className="flex-1 min-w-0 mr-2">
@@ -581,7 +581,7 @@ export default function ChatPage(): JSX.Element {
               </div>
               <button
                 onClick={(e) => handleDeleteConversation(conv.id, e)}
-                className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/20 hover:text-destructive transition-all flex-shrink-0"
+                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-destructive/15 hover:text-destructive transition-all duration-200 flex-shrink-0"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -593,15 +593,15 @@ export default function ChatPage(): JSX.Element {
       {/* Chat area */}
       <div className="flex-1 flex flex-col">
         {/* Mode toggle header */}
-        <div className="border-b border-border px-4 py-2 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="border-b border-border/50 px-5 py-3 flex items-center justify-between bg-background/50 backdrop-blur-sm">
+          <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground">Mode:</span>
-            <div className="flex items-center bg-muted rounded-lg p-1">
+            <div className="flex items-center bg-muted/60 rounded-lg p-1 shadow-warm-sm">
               <button
                 onClick={() => setIsAgentMode(false)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-all duration-200 ${
                   !isAgentMode
-                    ? 'bg-background text-foreground shadow-sm'
+                    ? 'bg-background text-foreground shadow-warm-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -610,9 +610,9 @@ export default function ChatPage(): JSX.Element {
               </button>
               <button
                 onClick={() => setIsAgentMode(true)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-all duration-200 ${
                   isAgentMode
-                    ? 'bg-background text-foreground shadow-sm'
+                    ? 'bg-background text-foreground shadow-warm-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -698,7 +698,7 @@ export default function ChatPage(): JSX.Element {
         </div>
 
         {/* Input area */}
-        <div className="border-t border-border p-4">
+        <div className="border-t border-border/50 p-5 bg-background/80 backdrop-blur-sm">
           <div className="flex items-end gap-3 max-w-4xl mx-auto">
             <textarea
               ref={inputRef}
@@ -707,14 +707,14 @@ export default function ChatPage(): JSX.Element {
               onKeyDown={handleKeyDown}
               placeholder={isAgentMode ? "Ask me to search your memories..." : "Type a message..."}
               rows={1}
-              className="flex-1 resize-none rounded-lg border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
+              className="flex-1 resize-none rounded-lg border border-input/50 bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 shadow-warm-sm transition-all duration-200"
               disabled={isLoading}
               style={{ maxHeight: '150px', minHeight: '48px' }}
             />
             <button
               onClick={handleSend}
               disabled={!input.trim() || isLoading}
-              className="flex items-center justify-center w-12 h-12 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center justify-center w-12 h-12 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-warm hover:shadow-warm-lg"
             >
               {isLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />

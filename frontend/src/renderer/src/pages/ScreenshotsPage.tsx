@@ -218,20 +218,20 @@ export default function ScreenshotsPage(): JSX.Element {
           <button
             onClick={handleRefresh}
             disabled={isLoading}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
+            className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-muted/60 hover:bg-muted transition-all duration-200 shadow-warm-sm"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
           <button
             onClick={handleCaptureNow}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-muted/60 hover:bg-muted transition-all duration-200 shadow-warm-sm"
           >
             <Camera className="w-4 h-4" />
             <span>Capture Now</span>
           </button>
           <button
             onClick={handleToggleCapture}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all duration-200 shadow-warm ${
               captureStatus?.is_capturing
                 ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
                 : 'bg-primary text-primary-foreground hover:bg-primary/90'
@@ -253,14 +253,14 @@ export default function ScreenshotsPage(): JSX.Element {
       </div>
 
       {/* Date navigator and status bar */}
-      <div className="flex items-center gap-4 mb-6 p-3 rounded-lg bg-muted/50">
+      <div className="flex items-center gap-4 mb-6 p-4 rounded-lg glass-card">
         {/* Date navigator */}
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-muted-foreground" />
           <button
             onClick={() => navigateDate('prev')}
             disabled={!hasPrevDate}
-            className="p-1 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-1.5 rounded-lg hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -270,21 +270,21 @@ export default function ScreenshotsPage(): JSX.Element {
           <button
             onClick={() => navigateDate('next')}
             disabled={!hasNextDate}
-            className="p-1 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-1.5 rounded-lg hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="h-4 w-px bg-border" />
+        <div className="h-4 w-px bg-border/50" />
 
         {/* Capture status */}
         {captureStatus && (
           <>
             <div className="flex items-center gap-2">
               <div
-                className={`w-2 h-2 rounded-full ${
-                  captureStatus.is_capturing ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                className={`w-2.5 h-2.5 rounded-full ${
+                  captureStatus.is_capturing ? 'bg-primary animate-pulse' : 'bg-muted-foreground/50'
                 }`}
               />
               <span className="text-sm">
@@ -299,7 +299,7 @@ export default function ScreenshotsPage(): JSX.Element {
             {captureStatus.monitors && captureStatus.monitors.length > 1 && (
               <button
                 onClick={openMonitorPicker}
-                className="flex items-center gap-2 ml-auto px-3 py-1.5 rounded-md bg-background border border-input hover:bg-muted transition-colors"
+                className="flex items-center gap-2 ml-auto px-3 py-2 rounded-lg bg-background/80 border border-input/50 hover:bg-muted/60 transition-all duration-200"
               >
                 <Monitor className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm">
@@ -420,7 +420,7 @@ function ScreenshotCard({
   return (
     <div
       ref={cardRef}
-      className="group relative rounded-lg border border-border overflow-hidden bg-card hover:shadow-md transition-shadow cursor-pointer"
+      className="group relative rounded-lg overflow-hidden glass-card hover:shadow-warm transition-all duration-200 cursor-pointer"
       onClick={onClick}
     >
       <div className="aspect-video bg-muted">
@@ -500,17 +500,17 @@ function ImageViewerModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50"
       onClick={onClose}
     >
       <div
-        className="relative max-w-[90vw] max-h-[90vh] bg-card rounded-lg overflow-hidden"
+        className="relative max-w-[90vw] max-h-[90vh] glass-card rounded-xl overflow-hidden shadow-warm-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="absolute top-2 right-2 flex gap-2 z-10">
+        <div className="absolute top-3 right-3 flex gap-2 z-10">
           <button
             onClick={onClose}
-            className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+            className="p-2 rounded-full bg-black/40 text-white hover:bg-black/60 transition-all duration-200"
           >
             <X className="w-5 h-5" />
           </button>
@@ -530,7 +530,7 @@ function ImageViewerModal({
             <Camera className="w-16 h-16 text-muted-foreground/30" />
           </div>
         )}
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-border/50 bg-background/50">
           <p className="text-sm font-medium">{screenshot.window_title || 'Unknown'}</p>
           <p className="text-xs text-muted-foreground mt-1">
             {formatDateTime(screenshot.timestamp)}
@@ -560,18 +560,18 @@ function MonitorPickerModal({
 }): JSX.Element {
   return (
     <div
-      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50"
       onClick={onClose}
     >
       <div
-        className="bg-card rounded-lg p-6 max-w-4xl w-full mx-4"
+        className="glass-card rounded-xl p-6 max-w-4xl w-full mx-4 shadow-warm-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold">Select Screen to Capture</h2>
           <button
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-muted transition-colors"
+            className="p-2 rounded-full hover:bg-muted/60 transition-all duration-200"
           >
             <X className="w-5 h-5" />
           </button>
@@ -588,13 +588,13 @@ function MonitorPickerModal({
               <button
                 key={mon.id}
                 onClick={() => onSelect(mon.id)}
-                className={`relative rounded-lg border-2 overflow-hidden transition-all hover:shadow-lg ${
+                className={`relative rounded-xl border-2 overflow-hidden transition-all duration-200 hover:shadow-warm ${
                   captureStatus.selected_monitor === mon.id
-                    ? 'border-primary ring-2 ring-primary/30'
-                    : 'border-border hover:border-primary/50'
+                    ? 'border-primary ring-2 ring-primary/20 shadow-warm'
+                    : 'border-border/50 hover:border-primary/50'
                 }`}
               >
-                <div className="aspect-video bg-muted">
+                <div className="aspect-video bg-muted/50">
                   {monitorPreviews[mon.id] ? (
                     <img
                       src={monitorPreviews[mon.id]}
@@ -607,14 +607,14 @@ function MonitorPickerModal({
                     </div>
                   )}
                 </div>
-                <div className="p-3 text-left">
+                <div className="p-3 text-left bg-background/50">
                   <p className="font-medium text-sm">{mon.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {mon.width} x {mon.height}
                   </p>
                 </div>
                 {captureStatus.selected_monitor === mon.id && (
-                  <div className="absolute top-2 right-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full">
+                  <div className="absolute top-2 right-2 bg-primary text-primary-foreground text-xs px-2.5 py-1 rounded-full shadow-warm-sm">
                     Selected
                   </div>
                 )}

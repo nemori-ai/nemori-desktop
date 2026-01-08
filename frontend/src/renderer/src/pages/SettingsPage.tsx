@@ -138,7 +138,7 @@ export default function SettingsPage(): JSX.Element {
 
       await loadSettings()
 
-      const savedItems = []
+      const savedItems: string[] = []
       if (config.chat_api_key) savedItems.push('Chat API Key')
       if (config.chat_base_url) savedItems.push('Chat Base URL')
       if (config.chat_model) savedItems.push('Chat Model')
@@ -216,7 +216,7 @@ export default function SettingsPage(): JSX.Element {
             <h2 className="text-lg font-semibold">LLM Configuration</h2>
             <div className="flex items-center gap-2">
               <div
-                className={`w-2 h-2 rounded-full ${llmConfigured ? 'bg-green-500' : 'bg-yellow-500'}`}
+                className={`w-2.5 h-2.5 rounded-full ${llmConfigured ? 'bg-primary' : 'bg-amber-500'}`}
               />
               <span className="text-sm text-muted-foreground">
                 {llmConfigured ? 'Configured' : 'Not configured'}
@@ -225,7 +225,7 @@ export default function SettingsPage(): JSX.Element {
           </div>
 
           {/* Chat Model Configuration */}
-          <div className="space-y-4 p-4 rounded-lg border border-border bg-card">
+          <div className="space-y-4 p-5 rounded-xl glass-card">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Chat Model</h3>
 
             {/* Chat API Key */}
@@ -233,7 +233,7 @@ export default function SettingsPage(): JSX.Element {
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium">Chat API Key</label>
                 {settings.chat_api_key && !chatApiKey && (
-                  <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                  <span className="text-xs text-primary flex items-center gap-1">
                     <Check className="w-3 h-3" />
                     Configured
                   </span>
@@ -250,7 +250,7 @@ export default function SettingsPage(): JSX.Element {
                     }
                   }}
                   placeholder="Enter your Chat API key"
-                  className="w-full px-4 py-2 pr-10 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className="w-full px-4 py-2.5 pr-10 rounded-lg border border-border/50 bg-background/80 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all duration-200"
                 />
                 <button
                   onClick={() => setShowChatApiKey(!showChatApiKey)}
@@ -278,7 +278,7 @@ export default function SettingsPage(): JSX.Element {
                 value={chatBaseUrl}
                 onChange={(e) => setChatBaseUrl(e.target.value)}
                 placeholder="https://openrouter.ai/api/v1"
-                className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full px-4 py-2.5 rounded-lg border border-border/50 bg-background/80 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all duration-200"
               />
             </div>
 
@@ -290,7 +290,7 @@ export default function SettingsPage(): JSX.Element {
                 value={chatModel}
                 onChange={(e) => setChatModel(e.target.value)}
                 placeholder="google/gemini-3-flash-preview"
-                className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full px-4 py-2.5 rounded-lg border border-border/50 bg-background/80 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all duration-200"
               />
               <p className="text-xs text-muted-foreground">
                 Recommended: google/gemini-3-flash-preview
@@ -299,7 +299,7 @@ export default function SettingsPage(): JSX.Element {
           </div>
 
           {/* Embedding Model Configuration */}
-          <div className="space-y-4 p-4 rounded-lg border border-border bg-card">
+          <div className="space-y-4 p-5 rounded-xl glass-card">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Embedding Model</h3>
 
             {/* Embedding API Key */}
@@ -307,7 +307,7 @@ export default function SettingsPage(): JSX.Element {
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium">Embedding API Key</label>
                 {settings.embedding_api_key && !embeddingApiKey && (
-                  <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                  <span className="text-xs text-primary flex items-center gap-1">
                     <Check className="w-3 h-3" />
                     Configured
                   </span>
@@ -324,7 +324,7 @@ export default function SettingsPage(): JSX.Element {
                     }
                   }}
                   placeholder="Enter your Embedding API key"
-                  className="w-full px-4 py-2 pr-10 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className="w-full px-4 py-2.5 pr-10 rounded-lg border border-border/50 bg-background/80 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all duration-200"
                 />
                 <button
                   onClick={() => setShowEmbeddingApiKey(!showEmbeddingApiKey)}
@@ -352,7 +352,7 @@ export default function SettingsPage(): JSX.Element {
                 value={embeddingBaseUrl}
                 onChange={(e) => setEmbeddingBaseUrl(e.target.value)}
                 placeholder="https://api.openai.com/v1"
-                className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full px-4 py-2.5 rounded-lg border border-border/50 bg-background/80 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all duration-200"
               />
             </div>
 
@@ -364,7 +364,7 @@ export default function SettingsPage(): JSX.Element {
                 value={embeddingModel}
                 onChange={(e) => setEmbeddingModel(e.target.value)}
                 placeholder="text-embedding-3-small"
-                className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full px-4 py-2.5 rounded-lg border border-border/50 bg-background/80 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all duration-200"
               />
               <p className="text-xs text-muted-foreground">
                 Recommended: text-embedding-3-small
@@ -373,14 +373,14 @@ export default function SettingsPage(): JSX.Element {
           </div>
 
           {/* Actions */}
-          <div className="space-y-4 p-4 rounded-lg border border-border bg-card">
+          <div className="space-y-4 p-5 rounded-xl glass-card">
             {/* Test result */}
             {testResult && (
               <div
                 className={`flex items-center gap-2 p-3 rounded-lg ${
                   testResult.success
-                    ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
-                    : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                    ? 'bg-primary/10 text-primary dark:bg-primary/20'
+                    : 'bg-destructive/10 text-destructive dark:bg-destructive/20'
                 }`}
               >
                 {testResult.success ? (
@@ -397,7 +397,7 @@ export default function SettingsPage(): JSX.Element {
               <button
                 onClick={handleSaveLLMConfig}
                 disabled={isSaving}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all duration-200 shadow-warm"
               >
                 {isSaving ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -409,7 +409,7 @@ export default function SettingsPage(): JSX.Element {
               <button
                 onClick={handleTestConnection}
                 disabled={isTesting || !llmConfigured}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 disabled:opacity-50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-muted/60 hover:bg-muted disabled:opacity-50 transition-all duration-200 shadow-warm-sm"
               >
                 {isTesting ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -426,7 +426,7 @@ export default function SettingsPage(): JSX.Element {
         <section className="space-y-4">
           <h2 className="text-lg font-semibold">Application Settings</h2>
 
-          <div className="space-y-4 p-4 rounded-lg border border-border bg-card">
+          <div className="space-y-4 p-5 rounded-xl glass-card">
             {/* Capture Interval */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Screenshot Capture Interval (ms)</label>
@@ -436,7 +436,7 @@ export default function SettingsPage(): JSX.Element {
                 onChange={(e) => setCaptureInterval(Number(e.target.value))}
                 min={1000}
                 step={1000}
-                className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full px-4 py-2.5 rounded-lg border border-border/50 bg-background/80 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all duration-200"
               />
               <p className="text-xs text-muted-foreground">
                 How often to capture screenshots (default: 10000ms = 10s)
@@ -452,7 +452,7 @@ export default function SettingsPage(): JSX.Element {
                 onChange={(e) => setBatchSize(Number(e.target.value))}
                 min={5}
                 max={100}
-                className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full px-4 py-2.5 rounded-lg border border-border/50 bg-background/80 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all duration-200"
               />
               <p className="text-xs text-muted-foreground">
                 Number of events to accumulate before generating memories (default: 20)
@@ -470,9 +470,9 @@ export default function SettingsPage(): JSX.Element {
                   min={0.5}
                   max={1}
                   step={0.01}
-                  className="flex-1"
+                  className="flex-1 accent-primary"
                 />
-                <span className="text-sm font-mono w-16">{(similarityThreshold * 100).toFixed(0)}%</span>
+                <span className="text-sm font-mono w-16 px-2 py-1 rounded bg-muted/50">{(similarityThreshold * 100).toFixed(0)}%</span>
               </div>
               <p className="text-xs text-muted-foreground">
                 Skip screenshots that are this similar to the previous one (default: 95%)
@@ -488,7 +488,7 @@ export default function SettingsPage(): JSX.Element {
                 onChange={(e) => setMaxStorage(Number(e.target.value))}
                 min={100}
                 step={100}
-                className="w-full px-4 py-2 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full px-4 py-2.5 rounded-lg border border-border/50 bg-background/80 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all duration-200"
               />
               <p className="text-xs text-muted-foreground">
                 Maximum storage for screenshots (default: 500 MB)
@@ -500,8 +500,8 @@ export default function SettingsPage(): JSX.Element {
               <div
                 className={`flex items-center gap-2 p-3 rounded-lg ${
                   appResult.success
-                    ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
-                    : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                    ? 'bg-primary/10 text-primary dark:bg-primary/20'
+                    : 'bg-destructive/10 text-destructive dark:bg-destructive/20'
                 }`}
               >
                 {appResult.success ? (
@@ -518,7 +518,7 @@ export default function SettingsPage(): JSX.Element {
               <button
                 onClick={handleSaveAppSettings}
                 disabled={isSavingApp}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all duration-200 shadow-warm"
               >
                 {isSavingApp ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -534,11 +534,11 @@ export default function SettingsPage(): JSX.Element {
         {/* User Profile */}
         <section className="space-y-4">
           <div className="flex items-center gap-2">
-            <User className="w-5 h-5" />
+            <User className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold">User Profile</h2>
           </div>
 
-          <div className="space-y-4 p-4 rounded-lg border border-border bg-card">
+          <div className="space-y-4 p-5 rounded-xl glass-card">
             <p className="text-sm text-muted-foreground">
               Your profile is automatically built from semantic memories. It helps personalize AI responses.
             </p>
@@ -546,12 +546,12 @@ export default function SettingsPage(): JSX.Element {
             {/* Profile Stats */}
             {profileContext && (
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 rounded-lg bg-muted">
-                  <p className="text-2xl font-bold">{profileContext.total_items}</p>
+                <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+                  <p className="text-2xl font-bold text-primary">{profileContext.total_items}</p>
                   <p className="text-xs text-muted-foreground">Total Items</p>
                 </div>
-                <div className="p-3 rounded-lg bg-muted">
-                  <p className="text-2xl font-bold">{Object.keys(profileContext.categories).length}</p>
+                <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+                  <p className="text-2xl font-bold text-primary">{Object.keys(profileContext.categories).length}</p>
                   <p className="text-xs text-muted-foreground">Categories</p>
                 </div>
               </div>
@@ -559,7 +559,7 @@ export default function SettingsPage(): JSX.Element {
 
             {/* Profile Summary Preview */}
             {profileContext?.summary && profileContext.summary !== 'No profile data yet.' && (
-              <div className="p-3 rounded-lg bg-muted/50 border border-border">
+              <div className="p-4 rounded-xl bg-muted/30 border border-border/50">
                 <p className="text-xs font-medium text-muted-foreground mb-2">Profile Summary</p>
                 <p className="text-sm whitespace-pre-wrap">{profileContext.summary}</p>
               </div>
@@ -570,8 +570,8 @@ export default function SettingsPage(): JSX.Element {
               <div
                 className={`flex items-center gap-2 p-3 rounded-lg ${
                   profileResult.success
-                    ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
-                    : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                    ? 'bg-primary/10 text-primary dark:bg-primary/20'
+                    : 'bg-destructive/10 text-destructive dark:bg-destructive/20'
                 }`}
               >
                 {profileResult.success ? (
@@ -588,7 +588,7 @@ export default function SettingsPage(): JSX.Element {
               <button
                 onClick={handleUpdateProfile}
                 disabled={isUpdatingProfile}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all duration-200 shadow-warm"
               >
                 {isUpdatingProfile ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -599,7 +599,7 @@ export default function SettingsPage(): JSX.Element {
               </button>
               <button
                 onClick={handleClearProfile}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all duration-200"
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Clear</span>
@@ -612,7 +612,7 @@ export default function SettingsPage(): JSX.Element {
         {appSettings && (
           <section className="space-y-4">
             <h2 className="text-lg font-semibold">Storage Info</h2>
-            <div className="p-4 rounded-lg border border-border bg-card">
+            <div className="p-5 rounded-xl glass-card">
               <InfoRow label="Data Directory" value={appSettings.data_dir} />
             </div>
           </section>
@@ -622,14 +622,14 @@ export default function SettingsPage(): JSX.Element {
         <section className="space-y-4">
           <h2 className="text-lg font-semibold">About</h2>
 
-          <div className="p-4 rounded-lg border border-border bg-card space-y-3">
+          <div className="p-5 rounded-xl glass-card space-y-3">
             <InfoRow label="Application" value="Nemori" />
             <InfoRow label="Version" value="1.0.0" />
             <InfoRow label="Author" value="nemori-ai" />
             <div className="pt-2">
               <button
                 onClick={() => handleOpenExternal('https://github.com/nemori-ai')}
-                className="text-sm text-primary hover:underline inline-flex items-center gap-1"
+                className="text-sm text-primary hover:underline inline-flex items-center gap-1 transition-colors"
               >
                 View on GitHub <ExternalLink className="w-3 h-3" />
               </button>

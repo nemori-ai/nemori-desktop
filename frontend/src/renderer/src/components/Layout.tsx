@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect } from 'react'
+import { ReactNode, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   MessageSquare,
@@ -32,15 +32,13 @@ export default function Layout({ children }: LayoutProps): JSX.Element {
   const navigate = useNavigate()
   const location = useLocation()
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const [isMaximized, setIsMaximized] = useState(false)
 
   const handleMinimize = (): void => {
     window.api.window.minimize()
   }
 
-  const handleMaximize = async (): Promise<void> => {
-    const maximized = await window.api.window.maximize()
-    setIsMaximized(maximized)
+  const handleMaximize = (): void => {
+    window.api.window.maximize()
   }
 
   const handleClose = (): void => {
@@ -49,15 +47,15 @@ export default function Layout({ children }: LayoutProps): JSX.Element {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background">
-      {/* Sidebar */}
+      {/* Glassmorphism Sidebar */}
       <aside
-        className={`flex flex-col border-r border-border bg-card transition-all duration-300 ${
+        className={`flex flex-col glass-sidebar transition-all duration-300 ${
           isCollapsed ? 'w-16' : 'w-56'
         }`}
       >
         {/* Title bar / drag region */}
         <div
-          className={`drag-region h-12 flex items-center border-b border-border ${
+          className={`drag-region h-12 flex items-center border-b border-border/50 ${
             isMacOS ? 'pl-20 pr-4' : 'px-4'
           }`}
         >
@@ -68,19 +66,19 @@ export default function Layout({ children }: LayoutProps): JSX.Element {
             <div className="flex items-center gap-1 no-drag ml-auto">
               <button
                 onClick={handleMinimize}
-                className="p-1.5 rounded hover:bg-muted transition-colors"
+                className="p-1.5 rounded-lg hover:bg-muted/60 transition-all duration-200"
               >
                 <Minus className="w-4 h-4" />
               </button>
               <button
                 onClick={handleMaximize}
-                className="p-1.5 rounded hover:bg-muted transition-colors"
+                className="p-1.5 rounded-lg hover:bg-muted/60 transition-all duration-200"
               >
                 <Square className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={handleClose}
-                className="p-1.5 rounded hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                className="p-1.5 rounded-lg hover:bg-destructive hover:text-destructive-foreground transition-all duration-200"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -88,8 +86,8 @@ export default function Layout({ children }: LayoutProps): JSX.Element {
           )}
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-2 space-y-1">
+        {/* Navigation with warm minimalism */}
+        <nav className="flex-1 p-3 space-y-1.5">
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = location.pathname.startsWith(item.path)
@@ -98,10 +96,10 @@ export default function Layout({ children }: LayoutProps): JSX.Element {
               <button
                 key={item.path}
                 onClick={() => navigate(item.path)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 ${
                   isActive
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    ? 'bg-primary/12 text-primary shadow-warm-sm'
+                    : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
                 }`}
               >
                 <Icon className="w-5 h-5 flex-shrink-0" />
@@ -112,10 +110,10 @@ export default function Layout({ children }: LayoutProps): JSX.Element {
         </nav>
 
         {/* Collapse toggle */}
-        <div className="p-2 border-t border-border">
+        <div className="p-3 border-t border-border/50">
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="w-full flex items-center justify-center p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="w-full flex items-center justify-center p-2.5 rounded-lg text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all duration-200"
           >
             {isCollapsed ? (
               <ChevronRight className="w-5 h-5" />

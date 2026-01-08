@@ -83,7 +83,7 @@ export default function VisualizationPage(): JSX.Element {
         <button
           onClick={loadAllData}
           disabled={isLoading}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-muted/60 hover:bg-muted transition-all duration-200 disabled:opacity-50 shadow-warm-sm"
         >
           <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           <span>Refresh</span>
@@ -91,7 +91,7 @@ export default function VisualizationPage(): JSX.Element {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-border pb-2">
+      <div className="flex gap-2 mb-6 border-b border-border/50 pb-3">
         <TabButton
           active={activeTab === 'overview'}
           onClick={() => setActiveTab('overview')}
@@ -145,10 +145,10 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+      className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all duration-200 ${
         active
-          ? 'bg-primary text-primary-foreground'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          ? 'bg-primary text-primary-foreground shadow-warm-sm'
+          : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
       }`}
     >
       {icon}
@@ -208,7 +208,7 @@ function OverviewTab({
 
       {/* Mini Heatmap */}
       {heatmap && (
-        <div className="p-4 rounded-lg border border-border bg-card">
+        <div className="p-5 rounded-lg glass-card">
           <h3 className="text-sm font-medium mb-3">Activity (Last 90 Days)</h3>
           <MiniHeatmap data={heatmap.heatmap.slice(-63)} />
         </div>
@@ -216,13 +216,13 @@ function OverviewTab({
 
       {/* Topics & Keywords */}
       {topics && topics.top_keywords.length > 0 && (
-        <div className="p-4 rounded-lg border border-border bg-card">
+        <div className="p-5 rounded-lg glass-card">
           <h3 className="text-sm font-medium mb-3">Top Keywords</h3>
           <div className="flex flex-wrap gap-2">
             {topics.top_keywords.slice(0, 15).map((kw, i) => (
               <span
                 key={i}
-                className="px-3 py-1 rounded-full text-sm bg-muted"
+                className="px-3 py-1.5 rounded-full text-sm bg-muted/60"
                 style={{ opacity: 0.5 + (0.5 * (15 - i)) / 15 }}
               >
                 {kw.word}
@@ -236,17 +236,17 @@ function OverviewTab({
       {/* Type Distribution */}
       {topics && (
         <div className="grid grid-cols-2 gap-4">
-          <div className="p-4 rounded-lg border border-border bg-card">
+          <div className="p-5 rounded-lg glass-card">
             <div className="flex items-center gap-2 mb-2">
-              <Lightbulb className="w-4 h-4 text-blue-500" />
+              <Lightbulb className="w-4 h-4 text-primary" />
               <span className="text-sm font-medium">Knowledge</span>
             </div>
             <p className="text-3xl font-bold">{topics.type_distribution.knowledge ?? 0}</p>
             <p className="text-xs text-muted-foreground mt-1">Facts and information</p>
           </div>
-          <div className="p-4 rounded-lg border border-border bg-card">
+          <div className="p-5 rounded-lg glass-card">
             <div className="flex items-center gap-2 mb-2">
-              <Heart className="w-4 h-4 text-pink-500" />
+              <Heart className="w-4 h-4 text-accent" />
               <span className="text-sm font-medium">Preferences</span>
             </div>
             <p className="text-3xl font-bold">{topics.type_distribution.preference ?? 0}</p>
@@ -297,10 +297,10 @@ function TimelineTab({
           <button
             key={d}
             onClick={() => setDays(d)}
-            className={`px-3 py-1 rounded-full text-sm transition-colors ${
+            className={`px-3 py-1.5 rounded-full text-sm transition-all duration-200 ${
               days === d
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                ? 'bg-primary text-primary-foreground shadow-warm-sm'
+                : 'bg-muted/60 text-muted-foreground hover:bg-muted'
             }`}
           >
             {d} days
@@ -364,10 +364,10 @@ function TimelineDay({
   }
 
   return (
-    <div className="border border-border rounded-lg bg-card overflow-hidden">
+    <div className="rounded-lg glass-card overflow-hidden">
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
+        className="w-full flex items-center justify-between p-3 hover:bg-muted/40 transition-all duration-200"
       >
         <div className="flex items-center gap-3">
           {expanded ? (
@@ -433,18 +433,18 @@ function EventDetailModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
       onClick={onClose}
     >
       <div
-        className="bg-card rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto"
+        className="bg-card/95 backdrop-blur-md rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto shadow-warm-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-4">
           <h2 className="text-xl font-bold">{event.title}</h2>
           <button
             onClick={onClose}
-            className="p-1 rounded hover:bg-muted transition-colors"
+            className="p-1.5 rounded-lg hover:bg-muted/60 transition-all duration-200"
           >
             <ChevronRight className="w-5 h-5 rotate-45" />
           </button>
@@ -525,26 +525,26 @@ function HeatmapTab({
     <div className="space-y-6">
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 rounded-lg border border-border bg-card">
+        <div className="p-4 rounded-lg glass-card">
           <p className="text-sm text-muted-foreground">Total Memories</p>
           <p className="text-2xl font-bold">{heatmap.stats.total_memories}</p>
         </div>
-        <div className="p-4 rounded-lg border border-border bg-card">
+        <div className="p-4 rounded-lg glass-card">
           <p className="text-sm text-muted-foreground">Active Days</p>
           <p className="text-2xl font-bold">{heatmap.stats.active_days}</p>
         </div>
-        <div className="p-4 rounded-lg border border-border bg-card">
+        <div className="p-4 rounded-lg glass-card">
           <p className="text-sm text-muted-foreground">Max Daily</p>
           <p className="text-2xl font-bold">{heatmap.stats.max_daily}</p>
         </div>
-        <div className="p-4 rounded-lg border border-border bg-card">
+        <div className="p-4 rounded-lg glass-card">
           <p className="text-sm text-muted-foreground">Daily Average</p>
           <p className="text-2xl font-bold">{heatmap.stats.average_daily}</p>
         </div>
       </div>
 
       {/* Full Heatmap */}
-      <div className="p-4 rounded-lg border border-border bg-card">
+      <div className="p-5 rounded-lg glass-card">
         <h3 className="text-sm font-medium mb-4">Activity Heatmap (Last 90 Days)</h3>
         <FullHeatmap data={heatmap.heatmap} maxCount={heatmap.stats.max_daily} />
       </div>
@@ -579,7 +579,7 @@ function MiniHeatmap({ data }: { data: HeatmapData['heatmap'] }): JSX.Element {
                 backgroundColor:
                   day.count === 0
                     ? 'var(--muted)'
-                    : `rgba(37, 99, 235, ${0.2 + (day.count / maxCount) * 0.8})`
+                    : `rgba(45, 90, 69, ${0.2 + (day.count / maxCount) * 0.8})`
               }}
               title={`${day.date}: ${day.count} memories`}
             />
@@ -678,7 +678,7 @@ function FullHeatmap({
                     backgroundColor:
                       day.count <= 0
                         ? 'var(--muted)'
-                        : `rgba(37, 99, 235, ${0.2 + (day.count / Math.max(maxCount, 1)) * 0.8})`
+                        : `rgba(45, 90, 69, ${0.2 + (day.count / Math.max(maxCount, 1)) * 0.8})`
                   }}
                   title={day.date ? `${day.date}: ${day.count} memories` : ''}
                 />
@@ -697,7 +697,7 @@ function FullHeatmap({
             className="w-4 h-4 rounded-sm"
             style={{
               backgroundColor:
-                level === 0 ? 'var(--muted)' : `rgba(37, 99, 235, ${0.2 + level * 0.8})`
+                level === 0 ? 'var(--muted)' : `rgba(45, 90, 69, ${0.2 + level * 0.8})`
             }}
           />
         ))}

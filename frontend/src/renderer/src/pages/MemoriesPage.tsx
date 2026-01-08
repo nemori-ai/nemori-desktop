@@ -99,7 +99,7 @@ export default function MemoriesPage(): JSX.Element {
         <button
           onClick={loadMemories}
           disabled={isLoading}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-muted/60 hover:bg-muted transition-all duration-200 disabled:opacity-50 shadow-warm-sm"
         >
           <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           <span>Refresh</span>
@@ -108,19 +108,19 @@ export default function MemoriesPage(): JSX.Element {
 
       {/* Search bar */}
       <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Search your memories..."
-          className="w-full pl-10 pr-4 py-3 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+          className="w-full pl-11 pr-4 py-3 rounded-lg border border-input/50 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 shadow-warm-sm transition-all duration-200"
         />
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-border pb-2">
+      <div className="flex gap-2 mb-6 border-b border-border/50 pb-3">
         <TabButton
           active={activeTab === 'episodic'}
           onClick={() => setActiveTab('episodic')}
@@ -245,10 +245,10 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+      className={`flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all duration-200 ${
         active
-          ? 'bg-primary text-primary-foreground'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          ? 'bg-primary text-primary-foreground shadow-warm-sm'
+          : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
       }`}
     >
       {icon}
@@ -271,10 +271,10 @@ function FilterButton({
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+      className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium transition-all duration-200 ${
         active
-          ? 'bg-primary/10 text-primary border border-primary/30'
-          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+          ? 'bg-primary/12 text-primary border border-primary/20 shadow-warm-sm'
+          : 'bg-muted/60 text-muted-foreground hover:bg-muted'
       }`}
     >
       {icon}
@@ -295,7 +295,7 @@ function EpisodicMemoryCard({
   return (
     <div
       onClick={onClick}
-      className="p-4 rounded-lg border border-border bg-card hover:shadow-md hover:border-primary/30 transition-all cursor-pointer"
+      className="p-5 rounded-lg glass-card hover:shadow-warm transition-all duration-200 cursor-pointer"
     >
       <div className="flex items-start justify-between mb-2">
         <h3 className="font-semibold text-foreground">{memory.title}</h3>
@@ -337,11 +337,11 @@ function SemanticMemoryCard({
   const config = CATEGORY_CONFIG[memory.type] || {
     label: memory.type,
     icon: <Brain className="w-4 h-4" />,
-    color: 'bg-gray-100 text-gray-600'
+    color: 'bg-muted text-muted-foreground'
   }
 
   return (
-    <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-card hover:shadow-sm transition-shadow">
+    <div className="flex items-start gap-3 p-4 rounded-lg glass-card hover:shadow-warm-sm transition-all duration-200">
       <div
         className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${config.color}`}
       >
@@ -368,15 +368,15 @@ function SearchResultCard({ memory }: { memory: Memory }): JSX.Element {
   const distance = memory.distance ? (1 - memory.distance).toFixed(2) : null
 
   return (
-    <div className="p-4 rounded-lg border border-border bg-card hover:shadow-sm transition-shadow">
+    <div className="p-4 rounded-lg glass-card hover:shadow-warm-sm transition-all duration-200">
       <div className="flex items-center gap-2 mb-2">
         <span
           className={`text-xs px-2 py-0.5 rounded-full ${
             type === 'episodic'
-              ? 'bg-purple-100 text-purple-600'
+              ? 'bg-primary/10 text-primary'
               : type === 'semantic'
-                ? 'bg-blue-100 text-blue-600'
-                : 'bg-gray-100 text-gray-600'
+                ? 'bg-accent/20 text-accent-foreground'
+                : 'bg-muted text-muted-foreground'
           }`}
         >
           {type}
@@ -435,15 +435,15 @@ function EpisodicMemoryModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
       <div
-        className="bg-card rounded-lg max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-card/95 backdrop-blur-md rounded-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-warm-lg"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between p-6 border-b border-border">
+        <div className="flex items-start justify-between p-6 border-b border-border/50">
           <div className="flex-1 pr-4">
             <h2 className="text-xl font-bold mb-2">{memory.title}</h2>
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
@@ -467,7 +467,7 @@ function EpisodicMemoryModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-muted transition-colors flex-shrink-0"
+            className="p-2 rounded-lg hover:bg-muted/60 transition-all duration-200 flex-shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
@@ -495,7 +495,7 @@ function EpisodicMemoryModal({
                     href={url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block text-sm text-primary hover:underline truncate"
+                    className="block text-sm text-primary hover:underline truncate transition-colors"
                   >
                     {url}
                   </a>
@@ -512,7 +512,7 @@ function EpisodicMemoryModal({
                 {(Array.isArray(memory.participants) ? memory.participants : []).map((p, i) => (
                   <span
                     key={i}
-                    className="px-3 py-1 rounded-full text-sm bg-muted"
+                    className="px-3 py-1.5 rounded-full text-sm bg-muted/60"
                   >
                     {p}
                   </span>
@@ -523,7 +523,7 @@ function EpisodicMemoryModal({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border bg-muted/30">
+        <div className="p-4 border-t border-border/50 bg-muted/30">
           <p className="text-xs text-muted-foreground">
             Memory ID: {memory.id}
           </p>

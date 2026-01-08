@@ -41,12 +41,53 @@ module.exports = {
         card: {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))'
+        },
+        // Forest Green color palette
+        forest: {
+          50: '#f0f5f3',
+          100: '#d9e8e2',
+          200: '#b6d1c7',
+          300: '#8bb5a6',
+          400: '#639583',
+          500: '#2D5A45',
+          600: '#274e3c',
+          700: '#214133',
+          800: '#1b352a',
+          900: '#162b23'
+        },
+        // Warm neutral palette
+        warm: {
+          50: '#FAF9F6',
+          100: '#F5F4F1',
+          200: '#EEEDEA',
+          300: '#E0DFDC',
+          400: '#B8B7B4',
+          500: '#4A4A4A',
+          600: '#3A3A3A',
+          700: '#2A2A2A',
+          800: '#1A1A1A',
+          900: '#0A0A0A'
+        },
+        // Amber accent
+        amber: {
+          DEFAULT: '#E69500',
+          light: '#FFB84D',
+          dark: '#CC8400'
         }
       },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)'
+      },
+      boxShadow: {
+        warm: '0 4px 24px rgba(0, 0, 0, 0.06)',
+        'warm-sm': '0 2px 12px rgba(0, 0, 0, 0.04)',
+        'warm-lg': '0 8px 32px rgba(0, 0, 0, 0.08)',
+        glass: '0 4px 24px rgba(45, 90, 69, 0.08)'
+      },
+      backdropBlur: {
+        glass: '12px'
       },
       keyframes: {
         'accordion-down': {
