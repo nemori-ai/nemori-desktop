@@ -13,10 +13,14 @@ Architecture:
 import json
 import time
 import uuid
+import asyncio
+import logging
 from typing import Optional, List, Dict, Any, AsyncGenerator, Callable
 from datetime import datetime
 
 from langgraph.prebuilt import create_react_agent
+
+logger = logging.getLogger(__name__)
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 
@@ -34,6 +38,9 @@ from .tools import get_all_tools
 from .middleware.summarization import SummarizationMiddleware
 
 
+# Default tool call timeout in seconds
+TOOL_CALL_TIMEOUT = 30
+
 # System prompt for the agent
 AGENT_SYSTEM_PROMPT = """You are Nemori, an intelligent personal assistant with access to the user's memory system.
 
@@ -43,18 +50,37 @@ You have access to the following tools to search and retrieve information from t
 
 {tools_description}
 
+TOOL USAGE GUIDELINES:
+
+1. **Parallel Tool Calls**: You can call multiple tools simultaneously when they are independent.
+   - Good: Call search_episodic_memory and search_semantic_memory at the same time for broader coverage
+   - Good: Call keyword_search and time_filter together when searching for specific terms in a time range
+   - All parallel tool calls will complete before you see the results
+
+2. **Think Tool**: Use the `think` tool to pause and reason through complex situations.
+   - Use it AFTER receiving tool results to analyze and synthesize information
+   - Use it when planning a multi-step approach
+   - Use it when the situation is ambiguous and needs careful consideration
+   - The think tool helps you organize your thoughts before responding
+
+3. **Sequential Calls**: Call tools sequentially when results from one tool inform the next.
+   - Example: First get_user_profile, then search based on discovered preferences
+
 When answering questions about the user or their past experiences:
 1. First, use the appropriate memory search tools to find relevant information
-2. Combine information from multiple sources if needed
-3. Provide comprehensive answers based on the retrieved memories
-4. If no relevant memories are found, let the user know
+2. Combine information from multiple sources for comprehensive answers
+3. Use the think tool to analyze results when dealing with complex questions
+4. Provide well-reasoned answers based on the retrieved memories
+5. If no relevant memories are found, let the user know
 
-Guidelines:
+Tool Selection Guidelines:
 - Use semantic search (search_episodic_memory, search_semantic_memory) when looking for meaning or context
 - Use keyword_search when looking for specific terms or exact matches
 - Use time_filter when the question involves specific time periods
 - Use get_user_profile to understand the user's overall preferences and characteristics
 - Use get_recent_activity to see what the user has been doing lately
+- Use search_chat_history to find previous conversations
+- Use think to reason through complex problems or analyze multiple tool results
 - When referring to dates, use the current date above as reference. "Yesterday" means one day before the current date.
 
 Always be helpful, accurate, and respect the user's privacy. Base your responses on the actual memories retrieved.
@@ -112,13 +138,13 @@ class AgentExecutor:
         base_url = self.llm_service.base_url
 
         # Create ChatOpenAI instance with tool calling support
-        # Disable parallel tool calls to ensure sequential execution
+        # Enable parallel tool calls - LangGraph will wait for all to complete
         chat_model = ChatOpenAI(
             model=model_name,
             api_key=api_key,
             base_url=base_url,
             temperature=0.7,
-        ).bind(parallel_tool_calls=False)
+        )  # parallel_tool_calls enabled by default
 
         # Create agent using LangGraph's create_react_agent
         # This creates a graph that alternates between the model and tools
@@ -286,6 +312,14 @@ class AgentExecutor:
 
                 # Check for tool calls
                 if hasattr(latest_message, 'tool_calls') and latest_message.tool_calls:
+                    # Log parallel tool calls for debugging
+                    if len(latest_message.tool_calls) > 1:
+                        tool_names = [tc.get('name', 'unknown') for tc in latest_message.tool_calls]
+                        logger.info(
+                            f"Parallel tool calls detected: {tool_names}. "
+                            "LangGraph will execute all and wait for completion."
+                        )
+
                     for tool_call in latest_message.tool_calls:
                         step += 1
                         session.current_step = step

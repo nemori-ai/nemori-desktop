@@ -13,6 +13,7 @@ from .memory_tools import (
     get_user_profile,
     get_recent_activity,
     search_chat_history,
+    think,  # Reasoning tool
     # Factory functions
     get_memory_tools,
     get_tool_descriptions,
@@ -43,6 +44,7 @@ __all__ = [
     'get_user_profile',
     'get_recent_activity',
     'search_chat_history',
+    'think',
     # Factory functions
     'get_all_tools',
     'get_memory_tools',

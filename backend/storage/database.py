@@ -3,6 +3,7 @@ SQLite Database Service for Nemori Backend
 """
 import sqlite3
 import json
+import time
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 import aiosqlite
@@ -382,7 +383,7 @@ class Database:
 
     async def create_conversation(self, id: str, title: Optional[str] = None) -> None:
         async with self._lock:
-            now = int(asyncio.get_event_loop().time() * 1000)
+            now = int(time.time() * 1000)
             await self._connection.execute(
                 """
                 INSERT INTO conversations (id, title, created_at, updated_at)
@@ -401,7 +402,7 @@ class Database:
 
     async def update_conversation(self, id: str, title: str) -> None:
         async with self._lock:
-            now = int(asyncio.get_event_loop().time() * 1000)
+            now = int(time.time() * 1000)
             await self._connection.execute(
                 "UPDATE conversations SET title = ?, updated_at = ? WHERE id = ?",
                 (title, now, id),
@@ -440,7 +441,7 @@ class Database:
                     json.dumps(memory.get("event_ids")) if memory.get("event_ids") else None,
                     memory.get("embedding_id"),
                     json.dumps(memory.get("source_app")) if memory.get("source_app") else None,
-                    memory.get("created_at", int(asyncio.get_event_loop().time() * 1000)),
+                    memory.get("created_at", int(time.time() * 1000)),
                 ),
             )
             await self._connection.commit()
@@ -539,7 +540,7 @@ class Database:
                     memory.get("confidence", 0.5),
                     memory.get("embedding_id"),
                     json.dumps(memory.get("source_app")) if memory.get("source_app") else None,
-                    memory.get("created_at", int(asyncio.get_event_loop().time() * 1000)),
+                    memory.get("created_at", int(time.time() * 1000)),
                 ),
             )
             await self._connection.commit()
@@ -597,7 +598,7 @@ class Database:
 
     async def set_setting(self, key: str, value: str) -> None:
         async with self._lock:
-            now = int(asyncio.get_event_loop().time() * 1000)
+            now = int(time.time() * 1000)
             await self._connection.execute(
                 """
                 INSERT OR REPLACE INTO settings (key, value, updated_at)

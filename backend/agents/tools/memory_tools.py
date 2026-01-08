@@ -76,6 +76,11 @@ class SearchChatHistoryInput(BaseModel):
     limit: int = Field(default=20, ge=1, le=100, description="Maximum results to return (default: 20)")
 
 
+class ThinkInput(BaseModel):
+    """Input schema for think tool"""
+    thought: str = Field(description="A thought to think about. Use this to reason through complex problems, analyze tool results, or plan next steps.")
+
+
 # ==================== Memory Search Tools ====================
 
 @tool("search_episodic_memory", args_schema=SearchEpisodicInput)
@@ -552,6 +557,33 @@ async def search_chat_history(
         })
 
 
+# ==================== Reasoning Tool ====================
+
+@tool("think", args_schema=ThinkInput)
+def think(thought: str) -> str:
+    """Use this tool to think about something.
+
+    This tool allows you to pause and reason through complex problems,
+    analyze information from previous tool calls, or plan your next steps.
+    It does not retrieve any new information - it simply provides a space
+    for structured thinking.
+
+    Use this tool when you need to:
+    - Process and synthesize results from multiple tool calls
+    - Reason through complex or ambiguous situations
+    - Plan a multi-step approach before taking action
+    - Verify your understanding before providing a final answer
+
+    The thought will be logged but does not affect the external state.
+    """
+    # The think tool doesn't do anything - it just returns success
+    # The value is in giving the model a space to reason
+    return json.dumps({
+        "success": True,
+        "message": "Thought recorded. Continue with your reasoning or take action."
+    })
+
+
 # ==================== Tool Factory ====================
 
 def get_memory_tools():
@@ -568,6 +600,7 @@ def get_memory_tools():
         get_user_profile,
         get_recent_activity,
         search_chat_history,
+        think,  # Reasoning tool for complex analysis
     ]
 
 
