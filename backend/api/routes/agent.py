@@ -144,6 +144,7 @@ async def agent_chat(request: AgentChatRequest):
                 })
 
                 # Add both user and assistant messages to memory batch for processing
+                # Note: Include metadata to preserve session_id when add_to_batch saves
                 await memory.add_to_batch({
                     "id": user_message_id,
                     "role": "user",
@@ -156,7 +157,8 @@ async def agent_chat(request: AgentChatRequest):
                     "role": "assistant",
                     "content": final_response,
                     "timestamp": assistant_timestamp,
-                    "conversation_id": conversation_id
+                    "conversation_id": conversation_id,
+                    "metadata": {"session_id": session_id, "is_agent": True}
                 })
 
                 # Update conversation title for new conversations
