@@ -514,58 +514,66 @@ class AgentExecutor:
             session: The completed agent session
         """
         try:
-            conn = self.db._connection
+            logger.info(f"[_save_session] Saving session {session.id} with {len(session.tool_calls)} tool calls")
 
-            # Save session
-            await conn.execute(
-                """
-                INSERT OR REPLACE INTO agent_sessions
-                (id, conversation_id, status, current_step, max_steps, config,
-                 created_at, updated_at, started_at, completed_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    session.id,
-                    session.conversation_id,
-                    session.status.value,
-                    session.current_step,
-                    session.max_steps,
-                    None,  # config
-                    session.created_at,
-                    session.updated_at,
-                    session.started_at,
-                    session.completed_at,
-                ),
-            )
+            # Use database lock for thread safety
+            async with self.db._lock:
+                conn = self.db._connection
 
-            # Save tool calls
-            for tc in session.tool_calls:
+                # Save session
                 await conn.execute(
                     """
-                    INSERT OR REPLACE INTO tool_calls
-                    (id, session_id, step, tool_name, tool_args, status,
-                     result, error, started_at, completed_at, duration_ms)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT OR REPLACE INTO agent_sessions
+                    (id, conversation_id, status, current_step, max_steps, config,
+                     created_at, updated_at, started_at, completed_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
-                        tc.id,
-                        tc.session_id,
-                        tc.step,
-                        tc.tool_name,
-                        json.dumps(tc.tool_args),
-                        tc.status.value,
-                        json.dumps(tc.result) if tc.result else None,
-                        tc.error,
-                        tc.started_at,
-                        tc.completed_at,
-                        tc.duration_ms,
+                        session.id,
+                        session.conversation_id,
+                        session.status.value,
+                        session.current_step,
+                        session.max_steps,
+                        None,  # config
+                        session.created_at,
+                        session.updated_at,
+                        session.started_at,
+                        session.completed_at,
                     ),
                 )
 
-            await conn.commit()
+                # Save tool calls
+                for tc in session.tool_calls:
+                    logger.debug(f"[_save_session] Saving tool call {tc.id}: {tc.tool_name}")
+                    await conn.execute(
+                        """
+                        INSERT OR REPLACE INTO tool_calls
+                        (id, session_id, step, tool_name, tool_args, status,
+                         result, error, started_at, completed_at, duration_ms)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            tc.id,
+                            tc.session_id,
+                            tc.step,
+                            tc.tool_name,
+                            json.dumps(tc.tool_args),
+                            tc.status.value,
+                            json.dumps(tc.result) if tc.result else None,
+                            tc.error,
+                            tc.started_at,
+                            tc.completed_at,
+                            tc.duration_ms,
+                        ),
+                    )
+
+                await conn.commit()
+                logger.info(f"[_save_session] Session {session.id} saved successfully")
 
         except Exception as e:
-            print(f"Failed to save agent session: {e}")
+            logger.error(f"[_save_session] Failed to save agent session {session.id}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
 
 
     _instance: Optional["AgentExecutor"] = None

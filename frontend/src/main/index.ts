@@ -24,15 +24,32 @@ const optimizer = {
   watchWindowShortcuts(window: BrowserWindow): void {
     window.webContents.on('before-input-event', (event, input) => {
       if (input.type === 'keyDown') {
-        // F12 to toggle DevTools in development
-        if (input.key === 'F12' && is.dev) {
-          window.webContents.toggleDevTools()
-          event.preventDefault()
-        }
-        // Ctrl+R / Cmd+R to reload
-        if (input.key === 'r' && (input.control || input.meta)) {
-          window.webContents.reload()
-          event.preventDefault()
+        // Only enable dev shortcuts in development mode
+        if (is.dev) {
+          // F12 to toggle DevTools
+          if (input.key === 'F12') {
+            window.webContents.toggleDevTools()
+            event.preventDefault()
+          }
+          // Ctrl+R / Cmd+R to reload
+          if (input.key === 'r' && (input.control || input.meta)) {
+            window.webContents.reload()
+            event.preventDefault()
+          }
+          // Ctrl+Shift+I / Cmd+Option+I to open DevTools
+          if (input.key === 'i' && (input.control || input.meta) && input.shift) {
+            window.webContents.toggleDevTools()
+            event.preventDefault()
+          }
+        } else {
+          // In production, block all DevTools shortcuts
+          if (
+            input.key === 'F12' ||
+            (input.key === 'i' && (input.control || input.meta) && input.shift) ||
+            (input.key === 'I' && (input.control || input.meta) && input.shift)
+          ) {
+            event.preventDefault()
+          }
         }
       }
     })
@@ -74,6 +91,13 @@ function createWindow(): void {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
+
+  // Disable DevTools in production
+  if (!is.dev) {
+    mainWindow.webContents.on('devtools-opened', () => {
+      mainWindow?.webContents.closeDevTools()
+    })
+  }
 
   // HMR for renderer base on electron-vite cli
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {

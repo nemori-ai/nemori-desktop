@@ -297,13 +297,16 @@ export default function ChatPage(): JSX.Element {
   const loadMessages = async (convId: string): Promise<void> => {
     try {
       const { messages } = await api.getMessages(convId)
+      console.log('[loadMessages] Loaded messages:', messages.length)
 
       // For agent messages, fetch their tool calls
       const messagesWithToolCalls = await Promise.all(
         messages.map(async (msg) => {
           if (msg.metadata?.is_agent && msg.metadata?.session_id) {
+            console.log('[loadMessages] Agent message found, session_id:', msg.metadata.session_id)
             try {
               const sessionDetails = await api.getAgentSessionDetails(msg.metadata.session_id)
+              console.log('[loadMessages] Session details loaded, tool_calls:', sessionDetails.tool_calls?.length || 0)
               return {
                 ...msg,
                 metadata: {
@@ -311,7 +314,8 @@ export default function ChatPage(): JSX.Element {
                   tool_calls: sessionDetails.tool_calls || []
                 }
               }
-            } catch {
+            } catch (err) {
+              console.error('[loadMessages] Failed to load session details:', err)
               return msg
             }
           }
