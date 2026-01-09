@@ -96,6 +96,38 @@ hiddenimports = [
     'hnswlib',
     '_ssl',
     '_hashlib',
+    # Tokenization (OpenAI/LangChain)
+    'tiktoken',
+    'tiktoken_ext',
+    'tiktoken_ext.openai_public',
+    # Retry/resilience
+    'tenacity',
+    # Numeric/scientific
+    'numpy',
+    'scipy',
+    'scipy.spatial',
+    # Environment
+    'dotenv',
+    'python_dotenv',
+    # SSL/Network
+    'certifi',
+    'charset_normalizer',
+    'idna',
+    'urllib3',
+    # Typing
+    'typing_extensions',
+    # JSON
+    'orjson',
+    # LangChain additional
+    'langchain.schema',
+    'langchain_core.runnables',
+    'langchain_core.outputs',
+    'langchain_core.callbacks',
+    'langchain_core.language_models',
+    'langgraph.graph',
+    'langgraph.checkpoint',
+    # UUID
+    'uuid',
 ]
 
 a = Analysis(

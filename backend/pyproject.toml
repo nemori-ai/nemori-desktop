@@ -25,6 +25,7 @@ dependencies = [
     "mss>=9.0.1",
     # Async/IO
     "aiofiles>=24.0.0",
+    "aiosqlite>=0.20.0",
     "websockets>=14.0",
     "httpx>=0.28.0",
     # Utils
