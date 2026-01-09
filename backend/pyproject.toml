@@ -3,7 +3,7 @@ name = "nemori-backend"
 version = "1.0.0"
 description = "Nemori AI Memory Assistant - Backend Service"
 authors = [{ name = "FellouAI" }]
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = [
     # Web framework
     "fastapi>=0.128.0",
