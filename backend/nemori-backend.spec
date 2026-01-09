@@ -88,9 +88,14 @@ hiddenimports = [
     'mss',
     # Utils
     'aiofiles',
+    'aiosqlite',
     'sqlite3',
     'multipart',
     'python_multipart',
+    # Additional dependencies
+    'hnswlib',
+    '_ssl',
+    '_hashlib',
 ]
 
 a = Analysis(
