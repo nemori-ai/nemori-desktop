@@ -3,25 +3,35 @@
  */
 
 let BASE_URL = 'http://127.0.0.1:21978'
+let isInitialized = false
 
 // Initialize API base URL from Electron main process
 export async function initializeApi(): Promise<void> {
-  if (window.api?.backend?.getUrl) {
+  if (window.api?.backend?.getUrl && !isInitialized) {
     BASE_URL = await window.api.backend.getUrl()
+    isInitialized = true
+    console.log('[API] Initialized with URL:', BASE_URL)
   }
 }
 
 class ApiService {
-  private baseUrl: string = BASE_URL
+  // Get base URL dynamically to ensure we always use the latest value
+  private get baseUrl(): string {
+    return BASE_URL
+  }
 
   async setBaseUrl(url: string): Promise<void> {
-    this.baseUrl = url
+    BASE_URL = url
   }
 
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
+    // Ensure API is initialized before making requests
+    if (!isInitialized) {
+      await initializeApi()
+    }
     const url = `${this.baseUrl}/api${endpoint}`
 
     const response = await fetch(url, {
