@@ -110,13 +110,14 @@ export class BackendService {
     }
 
     // Start the bundled backend
+    // Note: Don't override NEMORI_DATA_DIR - let backend use its default XDG path
+    // This ensures consistency between development and production modes
     this.process = spawn(
       executablePath,
       ['--host', this.host, '--port', String(this.port)],
       {
         env: {
-          ...process.env,
-          NEMORI_DATA_DIR: app.getPath('userData')
+          ...process.env
         },
         stdio: ['ignore', 'pipe', 'pipe']
       }

@@ -10,12 +10,10 @@ from pydantic import Field
 
 
 def get_data_dir() -> Path:
-    """Get the application data directory"""
+    """Get the application data directory - use XDG standard for all Unix-like systems"""
     if os.name == "nt":  # Windows
         base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
-    elif os.name == "darwin":  # macOS
-        base = Path.home() / "Library" / "Application Support"
-    else:  # Linux
+    else:  # macOS and Linux - use XDG standard
         base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
 
     data_dir = base / "Nemori"

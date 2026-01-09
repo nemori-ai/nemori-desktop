@@ -114,9 +114,8 @@ export EMBEDDING_MODEL="text-embedding-3-small"
 ### Data Directory
 
 Application data is stored in:
-- **macOS**: `~/Library/Application Support/Nemori/`
+- **macOS/Linux**: `~/.local/share/Nemori/`
 - **Windows**: `%APPDATA%/Nemori/`
-- **Linux**: `~/.local/share/Nemori/`
 
 ## Build
 
