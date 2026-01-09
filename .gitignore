@@ -13,6 +13,7 @@ build/
 *.dmg
 *.exe
 *.app
+*.tsbuildinfo
 
 # Environment
 .env
