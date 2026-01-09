@@ -10,7 +10,7 @@
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| Python | 3.10+ | 后端运行环境 |
+| Python | 3.12 | 后端运行环境 |
 | Node.js | 20.x+ | 前端运行环境 |
 | npm | 9.x+ | 包管理器 |
 | pip | Latest | Python 包管理器 |
