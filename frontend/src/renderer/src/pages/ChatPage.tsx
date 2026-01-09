@@ -473,26 +473,26 @@ export default function ChatPage(): JSX.Element {
         const currentConvId = currentConversationRef.current
         console.log('[Agent] Sending with conversationId:', currentConvId)
 
-        const { conversationId: newConvId } = await api.streamAgentChat(
+        const { conversationId: newConvId, sessionId } = await api.streamAgentChat(
           userMessage,
           currentConvId || undefined,
           10,
           handleAgentEvent
         )
-        console.log('[Agent] Received newConvId:', newConvId)
+        console.log('[Agent] Received newConvId:', newConvId, 'sessionId:', sessionId)
 
         // Use refs to get the latest values (avoid stale closures)
         const finalContent = streamingContentRef.current
         const finalToolCalls = [...toolCallsRef.current]
 
-        // Add assistant message with tool calls
+        // Add assistant message with tool calls and session_id for later retrieval
         const assistantMessage: Message = {
           id: `response-${Date.now()}`,
           role: 'assistant',
           content: finalContent,
           timestamp: Date.now(),
           conversation_id: newConvId,
-          metadata: { tool_calls: finalToolCalls, is_agent: true }
+          metadata: { tool_calls: finalToolCalls, is_agent: true, session_id: sessionId }
         }
 
         setMessages((prev) => [...prev, assistantMessage])
