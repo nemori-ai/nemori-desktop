@@ -7,6 +7,7 @@ import MemoriesPage from './pages/MemoriesPage'
 import SettingsPage from './pages/SettingsPage'
 import ScreenshotsPage from './pages/ScreenshotsPage'
 import VisualizationPage from './pages/VisualizationPage'
+import ProactivePage from './pages/ProactivePage'
 
 function App(): JSX.Element {
   const navigate = useNavigate()
@@ -48,6 +49,7 @@ function App(): JSX.Element {
             <Route path="/memories" element={<MemoriesPage />} />
             <Route path="/screenshots" element={<ScreenshotsPage />} />
             <Route path="/insights" element={<VisualizationPage />} />
+            <Route path="/proactive" element={<ProactivePage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </Layout>

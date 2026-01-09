@@ -3,6 +3,7 @@ import { app } from 'electron'
 import { join } from 'path'
 import { existsSync, chmodSync } from 'fs'
 import http from 'http'
+import { getRandomPort } from 'get-port-please'
 
 export class BackendService {
   private process: ChildProcess | null = null
@@ -94,14 +95,17 @@ export class BackendService {
       return await this.startDevelopment()
     }
 
+    // Get a random available port
+    this.port = await getRandomPort(this.host)
     console.log('[Production] Starting bundled backend:', executablePath)
+    console.log('[Production] Using port:', this.port)
 
     // Ensure executable has correct permissions on Unix
     if (process.platform !== 'win32') {
       try {
         chmodSync(executablePath, '755')
-      } catch (e) {
-        console.warn('Could not set executable permissions:', e)
+      } catch {
+        // Ignore permission errors
       }
     }
 
@@ -162,13 +166,17 @@ export class BackendService {
   private findBundledBackend(): string | null {
     const execName = process.platform === 'win32' ? 'nemori-backend.exe' : 'nemori-backend'
 
-    // Check possible locations for bundled backend
+    // Check possible locations for bundled backend (directory mode)
+    // PyInstaller directory mode outputs to: nemori-backend/nemori-backend (folder/executable)
     const candidates = [
-      // Production: bundled in resources
+      // Production: bundled in resources (directory mode structure)
+      join(process.resourcesPath || '', 'backend', 'nemori-backend', execName),
       join(process.resourcesPath || '', 'backend', execName),
       join(process.resourcesPath || '', execName),
       // macOS app bundle
+      join(app.getAppPath(), '..', 'backend', 'nemori-backend', execName),
       join(app.getAppPath(), '..', 'backend', execName),
+      join(app.getAppPath(), 'backend', 'nemori-backend', execName),
       join(app.getAppPath(), 'backend', execName),
     ]
 

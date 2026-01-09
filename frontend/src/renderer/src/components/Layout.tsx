@@ -10,7 +10,8 @@ import {
   Minus,
   Square,
   X,
-  BarChart2
+  BarChart2,
+  Zap
 } from 'lucide-react'
 
 interface LayoutProps {
@@ -21,6 +22,7 @@ const navItems = [
   { path: '/chat', icon: MessageSquare, label: 'Chat' },
   { path: '/memories', icon: Brain, label: 'Memories' },
   { path: '/insights', icon: BarChart2, label: 'Insights' },
+  { path: '/proactive', icon: Zap, label: 'Agent' },
   { path: '/screenshots', icon: Image, label: 'Screenshots' },
   { path: '/settings', icon: Settings, label: 'Settings' }
 ]

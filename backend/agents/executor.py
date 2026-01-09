@@ -568,6 +568,50 @@ class AgentExecutor:
             print(f"Failed to save agent session: {e}")
 
 
+    _instance: Optional["AgentExecutor"] = None
+
+    @classmethod
+    def get_instance(cls, **kwargs) -> "AgentExecutor":
+        """Get singleton instance of AgentExecutor."""
+        if cls._instance is None:
+            cls._instance = cls(**kwargs)
+        return cls._instance
+
+    async def execute(
+        self,
+        prompt: str,
+        conversation_id: Optional[str] = None,
+        use_profile_tools: bool = False,
+        use_proactive_tools: bool = False
+    ) -> str:
+        """Execute agent without streaming (for proactive tasks).
+
+        Args:
+            prompt: The prompt to execute
+            conversation_id: Optional conversation ID
+            use_profile_tools: Whether to include profile tools
+            use_proactive_tools: Whether to include proactive tools (create_task, etc.)
+
+        Returns:
+            The final response text
+        """
+        # Optionally include profile and proactive tools
+        if use_profile_tools or use_proactive_tools:
+            from .tools import get_all_tools
+            self.tools = get_all_tools(include_proactive=use_proactive_tools)
+            self.tool_map = {tool.name: tool for tool in self.tools}
+
+        final_response = ""
+
+        async for event in self.run(prompt, conversation_id):
+            if event.type == EventType.RESPONSE_END:
+                final_response = event.data.get("content", "")
+            elif event.type == EventType.ERROR:
+                raise RuntimeError(event.data.get("message", "Unknown error"))
+
+        return final_response
+
+
 async def run_agent(
     user_input: str,
     conversation_id: Optional[str] = None,

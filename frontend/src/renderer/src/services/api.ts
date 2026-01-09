@@ -547,6 +547,139 @@ class ApiService {
     const response = await fetch(`${this.baseUrl}/health`)
     return response.json()
   }
+
+  // ==================== Proactive Agent API ====================
+
+  async getProactiveAgentStatus(): Promise<ProactiveAgentStatus> {
+    return this.request('/proactive/status')
+  }
+
+  async startProactiveAgent(): Promise<{ success: boolean; message: string }> {
+    return this.request('/proactive/start', { method: 'POST' })
+  }
+
+  async stopProactiveAgent(): Promise<{ success: boolean; message: string }> {
+    return this.request('/proactive/stop', { method: 'POST' })
+  }
+
+  async wakeProactiveAgent(reason?: string): Promise<{ success: boolean; message: string; state: string }> {
+    return this.request('/proactive/wake', {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason || 'User request' })
+    })
+  }
+
+  async sleepProactiveAgent(reason?: string): Promise<{ success: boolean; message: string; state: string }> {
+    return this.request('/proactive/sleep', {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason || 'User request' })
+    })
+  }
+
+  async getProactiveTasks(status?: string, limit?: number): Promise<{ success: boolean; count: number; tasks: ProactiveTask[] }> {
+    const params = new URLSearchParams()
+    if (status) params.append('status', status)
+    if (limit) params.append('limit', String(limit))
+    return this.request(`/proactive/tasks?${params}`)
+  }
+
+  async getProactiveTaskHistory(limit?: number): Promise<{ success: boolean; count: number; history: ProactiveTask[] }> {
+    const params = new URLSearchParams()
+    if (limit) params.append('limit', String(limit))
+    return this.request(`/proactive/tasks/history?${params}`)
+  }
+
+  async createProactiveTask(task: CreateProactiveTaskRequest): Promise<{ success: boolean; task_id: string; message: string }> {
+    return this.request('/proactive/tasks', {
+      method: 'POST',
+      body: JSON.stringify(task)
+    })
+  }
+
+  async cancelProactiveTask(taskId: string): Promise<{ success: boolean; message: string }> {
+    return this.request(`/proactive/tasks/${taskId}`, { method: 'DELETE' })
+  }
+
+  async deleteProactiveTaskHistory(taskId: string): Promise<{ success: boolean; message: string }> {
+    return this.request(`/proactive/tasks/history/${taskId}`, { method: 'DELETE' })
+  }
+
+  async getProactiveSchedule(): Promise<{ success: boolean; schedule: ProactiveSchedule }> {
+    return this.request('/proactive/schedule')
+  }
+
+  async updateProactiveSchedule(schedule: UpdateProactiveScheduleRequest): Promise<{ success: boolean; message: string; schedule: ProactiveSchedule }> {
+    return this.request('/proactive/schedule', {
+      method: 'PUT',
+      body: JSON.stringify(schedule)
+    })
+  }
+
+  async getProactiveTriggers(): Promise<{ success: boolean; count: number; triggers: ProactiveTrigger[] }> {
+    return this.request('/proactive/triggers')
+  }
+
+  async getProactiveTaskTypes(): Promise<{ success: boolean; task_types: { value: string; name: string }[] }> {
+    return this.request('/proactive/task-types')
+  }
+
+  async runProactiveTaskNow(taskType: string, title?: string): Promise<{ success: boolean; task_id: string; message: string; agent_state: string }> {
+    const params = new URLSearchParams({ task_type: taskType })
+    if (title) params.append('title', title)
+    return this.request(`/proactive/actions/run-task?${params}`, { method: 'POST' })
+  }
+
+  // ==================== Profile Files API ====================
+
+  async getProfileFiles(includeTopics?: boolean, layer?: number): Promise<ProfileFilesResponse> {
+    const params = new URLSearchParams()
+    if (includeTopics !== undefined) params.append('include_topics', String(includeTopics))
+    if (layer !== undefined) params.append('layer', String(layer))
+    return this.request(`/profile-files/files?${params}`)
+  }
+
+  async getProfileFile(filename: string): Promise<ProfileFileResponse> {
+    return this.request(`/profile-files/files/${encodeURIComponent(filename)}`)
+  }
+
+  async updateProfileFile(filename: string, content: string, changelogEntry: string): Promise<{ success: boolean; message: string }> {
+    return this.request(`/profile-files/files/${encodeURIComponent(filename)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ content, changelog_entry: changelogEntry })
+    })
+  }
+
+  async createProfileFile(filename: string, title: string, description: string, initialContent?: string): Promise<{ success: boolean; message: string; title: string }> {
+    return this.request(`/profile-files/files/${encodeURIComponent(filename)}`, {
+      method: 'POST',
+      body: JSON.stringify({ title, description, initial_content: initialContent })
+    })
+  }
+
+  async deleteProfileFile(filename: string): Promise<{ success: boolean; message: string }> {
+    return this.request(`/profile-files/files/${encodeURIComponent(filename)}`, { method: 'DELETE' })
+  }
+
+  async searchProfileFiles(query: string, filenames?: string[]): Promise<ProfileSearchResponse> {
+    return this.request('/profile-files/search', {
+      method: 'POST',
+      body: JSON.stringify({ query, filenames })
+    })
+  }
+
+  async getProfileFilesSummary(includeKeyFacts?: boolean): Promise<ProfileSummaryResponse> {
+    const params = new URLSearchParams()
+    if (includeKeyFacts !== undefined) params.append('include_key_facts', String(includeKeyFacts))
+    return this.request(`/profile-files/summary?${params}`)
+  }
+
+  async getProfileLayers(): Promise<{ success: boolean; layers: { id: number; name: string }[] }> {
+    return this.request('/profile-files/layers')
+  }
+
+  async initializeProfile(): Promise<{ success: boolean; message: string; profile_dir: string }> {
+    return this.request('/profile-files/initialize', { method: 'POST' })
+  }
 }
 
 // Export singleton instance
@@ -861,4 +994,176 @@ export interface AgentSessionDetails {
     completed_at?: number
   }
   tool_calls: AgentToolCall[]
+}
+
+// Proactive Agent Types
+export interface ProactiveAgentStatus {
+  success: boolean
+  agent: {
+    state: string
+    is_awake: boolean
+    last_wakeup: string | null
+    last_sleep: string | null
+    tasks_completed_today: number
+    next_scheduled_task: string | null
+    recent_transitions: Array<{
+      from: string
+      to: string
+      timestamp: string
+      reason: string
+    }>
+  }
+  wakeup: {
+    initialized: boolean
+    triggers_count: number
+    enabled_triggers: number
+    schedule: ProactiveSchedule
+    next_trigger: {
+      id: string
+      name: string
+      type: string
+      scheduled_for: string | null
+      time_until: string | null
+    } | null
+  }
+  scheduler: {
+    initialized: boolean
+    tasks_in_queue: number
+    pending: number
+    scheduled: number
+    in_progress: number
+    history_size: number
+    next_task: {
+      id: string
+      title: string
+      type: string
+      scheduled_time: string
+      priority: number
+    } | null
+  }
+}
+
+export interface ProactiveTask {
+  id: string
+  type: string
+  title: string
+  description: string
+  scheduled_time: string | null
+  recurring: boolean
+  priority: number
+  status: string
+  created_at: string
+  started_at: string | null
+  completed_at: string | null
+  execution_time_ms: number | null
+  result: string | null
+  error: string | null
+  target_file: string | null
+}
+
+export interface CreateProactiveTaskRequest {
+  type: string
+  title: string
+  description?: string
+  scheduled_time?: string
+  priority?: number
+  recurring?: boolean
+  recurrence_hours?: number
+  target_file?: string
+}
+
+export interface ProactiveSchedule {
+  enabled: boolean
+  morning_wakeup: string
+  evening_wakeup: string
+  active_days: number[]
+  next_wakeup: string | null
+}
+
+export interface UpdateProactiveScheduleRequest {
+  morning_hour?: number
+  morning_minute?: number
+  evening_hour?: number
+  evening_minute?: number
+  active_days?: number[]
+  enabled?: boolean
+}
+
+export interface ProactiveTrigger {
+  id: string
+  type: string
+  name: string
+  enabled: boolean
+  scheduled_time: string | null
+  interval_minutes: number | null
+  last_triggered: string | null
+  priority: number
+  reason: string
+}
+
+// Profile Files Types
+export interface ProfileFileInfo {
+  name: string
+  relative_path: string
+  title: string
+  summary: string
+  keywords: string[]
+  confidence: number
+  layer: number
+  layer_name: string
+  updated_at: string | null
+  size: number
+}
+
+export interface ProfileFilesResponse {
+  success: boolean
+  total_files: number
+  files_by_layer: Record<string, ProfileFileInfo[]>
+}
+
+export interface ProfileFileResponse {
+  success: boolean
+  filename: string
+  content: string
+  metadata?: {
+    title: string
+    summary: string
+    keywords: string[]
+    confidence: number
+    layer: number
+    updated_at: string | null
+  }
+}
+
+export interface ProfileSearchMatch {
+  line: number
+  content: string
+  context: string
+}
+
+export interface ProfileSearchResult {
+  filename: string
+  matches_count: number
+  matches: ProfileSearchMatch[]
+}
+
+export interface ProfileSearchResponse {
+  success: boolean
+  query: string
+  total_matches: number
+  files_matched: number
+  results: ProfileSearchResult[]
+}
+
+export interface ProfileSummaryResponse {
+  success: boolean
+  total_files: number
+  last_updated: string | null
+  categories: Record<string, number>
+  recent_changes: Array<{
+    date: string
+    filename: string
+    description: string
+  }>
+  key_facts?: string[]
 }

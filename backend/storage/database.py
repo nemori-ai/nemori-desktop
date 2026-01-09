@@ -215,6 +215,66 @@ class Database:
             "CREATE INDEX IF NOT EXISTS idx_agent_messages_session ON agent_messages(session_id)"
         )
 
+        # Proactive agent state table
+        await self._connection.execute("""
+            CREATE TABLE IF NOT EXISTS proactive_agent_state (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                state TEXT NOT NULL DEFAULT 'sleeping',
+                last_wakeup INTEGER,
+                last_sleep INTEGER,
+                tasks_completed_today INTEGER DEFAULT 0,
+                last_daily_reset INTEGER,
+                config TEXT,
+                updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+            )
+        """)
+
+        # Proactive tasks table
+        await self._connection.execute("""
+            CREATE TABLE IF NOT EXISTS proactive_tasks (
+                id TEXT PRIMARY KEY,
+                type TEXT NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT,
+                scheduled_time INTEGER,
+                recurring INTEGER DEFAULT 0,
+                recurrence_interval_seconds INTEGER,
+                priority INTEGER DEFAULT 5,
+                status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'scheduled', 'in_progress', 'completed', 'failed', 'cancelled')),
+                target_file TEXT,
+                context TEXT,
+                result TEXT,
+                error TEXT,
+                created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+                started_at INTEGER,
+                completed_at INTEGER,
+                execution_time_ms INTEGER
+            )
+        """)
+        await self._connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_proactive_tasks_status ON proactive_tasks(status)"
+        )
+        await self._connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_proactive_tasks_scheduled ON proactive_tasks(scheduled_time)"
+        )
+
+        # Wakeup triggers table
+        await self._connection.execute("""
+            CREATE TABLE IF NOT EXISTS wakeup_triggers (
+                id TEXT PRIMARY KEY,
+                type TEXT NOT NULL,
+                name TEXT NOT NULL,
+                enabled INTEGER DEFAULT 1,
+                scheduled_time INTEGER,
+                interval_seconds INTEGER,
+                last_triggered INTEGER,
+                priority INTEGER DEFAULT 5,
+                reason TEXT,
+                metadata TEXT,
+                created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+            )
+        """)
+
     def is_connected(self) -> bool:
         return self._connection is not None
 
@@ -703,3 +763,268 @@ class Database:
         )
         rows = await cursor.fetchall()
         return [dict(row) for row in rows]
+
+    # ==================== Proactive Agent Operations ====================
+
+    async def get_proactive_agent_state(self) -> Optional[Dict[str, Any]]:
+        """Get the proactive agent's persisted state"""
+        cursor = await self._connection.execute(
+            "SELECT * FROM proactive_agent_state WHERE id = 1"
+        )
+        row = await cursor.fetchone()
+        if row:
+            result = dict(row)
+            if result.get('config') and isinstance(result['config'], str):
+                try:
+                    result['config'] = json.loads(result['config'])
+                except:
+                    pass
+            return result
+        return None
+
+    async def save_proactive_agent_state(self, state: Dict[str, Any]) -> None:
+        """Save the proactive agent's state"""
+        async with self._lock:
+            now = int(time.time() * 1000)
+            config_json = json.dumps(state.get('config')) if state.get('config') else None
+
+            await self._connection.execute(
+                """
+                INSERT OR REPLACE INTO proactive_agent_state
+                (id, state, last_wakeup, last_sleep, tasks_completed_today, last_daily_reset, config, updated_at)
+                VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    state.get('state', 'sleeping'),
+                    state.get('last_wakeup'),
+                    state.get('last_sleep'),
+                    state.get('tasks_completed_today', 0),
+                    state.get('last_daily_reset'),
+                    config_json,
+                    now,
+                ),
+            )
+            await self._connection.commit()
+
+    async def save_proactive_task(self, task: Dict[str, Any]) -> None:
+        """Save a proactive task"""
+        async with self._lock:
+            context_json = json.dumps(task.get('context')) if task.get('context') else None
+
+            await self._connection.execute(
+                """
+                INSERT OR REPLACE INTO proactive_tasks
+                (id, type, title, description, scheduled_time, recurring, recurrence_interval_seconds,
+                 priority, status, target_file, context, result, error, created_at, started_at, completed_at, execution_time_ms)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    task['id'],
+                    task['type'],
+                    task['title'],
+                    task.get('description'),
+                    task.get('scheduled_time'),
+                    1 if task.get('recurring') else 0,
+                    task.get('recurrence_interval_seconds'),
+                    task.get('priority', 5),
+                    task.get('status', 'pending'),
+                    task.get('target_file'),
+                    context_json,
+                    task.get('result'),
+                    task.get('error'),
+                    task.get('created_at', int(time.time() * 1000)),
+                    task.get('started_at'),
+                    task.get('completed_at'),
+                    task.get('execution_time_ms'),
+                ),
+            )
+            await self._connection.commit()
+
+    async def get_proactive_tasks(
+        self, status: Optional[str] = None, limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """Get proactive tasks, optionally filtered by status"""
+        if status:
+            cursor = await self._connection.execute(
+                "SELECT * FROM proactive_tasks WHERE status = ? ORDER BY priority DESC, scheduled_time ASC LIMIT ?",
+                (status, limit),
+            )
+        else:
+            cursor = await self._connection.execute(
+                "SELECT * FROM proactive_tasks ORDER BY priority DESC, scheduled_time ASC LIMIT ?",
+                (limit,),
+            )
+        rows = await cursor.fetchall()
+        results = []
+        for row in rows:
+            result = dict(row)
+            if result.get('context') and isinstance(result['context'], str):
+                try:
+                    result['context'] = json.loads(result['context'])
+                except:
+                    pass
+            results.append(result)
+        return results
+
+    async def get_proactive_task(self, task_id: str) -> Optional[Dict[str, Any]]:
+        """Get a single proactive task by ID"""
+        cursor = await self._connection.execute(
+            "SELECT * FROM proactive_tasks WHERE id = ?", (task_id,)
+        )
+        row = await cursor.fetchone()
+        if row:
+            result = dict(row)
+            if result.get('context') and isinstance(result['context'], str):
+                try:
+                    result['context'] = json.loads(result['context'])
+                except:
+                    pass
+            return result
+        return None
+
+    async def update_proactive_task_status(
+        self, task_id: str, status: str, result: Optional[str] = None, error: Optional[str] = None
+    ) -> None:
+        """Update a proactive task's status"""
+        async with self._lock:
+            now = int(time.time() * 1000)
+
+            if status == 'in_progress':
+                await self._connection.execute(
+                    "UPDATE proactive_tasks SET status = ?, started_at = ? WHERE id = ?",
+                    (status, now, task_id),
+                )
+            elif status in ('completed', 'failed', 'cancelled'):
+                # Get started_at for execution time calculation
+                cursor = await self._connection.execute(
+                    "SELECT started_at FROM proactive_tasks WHERE id = ?", (task_id,)
+                )
+                row = await cursor.fetchone()
+                execution_time = None
+                if row and row['started_at']:
+                    execution_time = now - row['started_at']
+
+                await self._connection.execute(
+                    """UPDATE proactive_tasks
+                       SET status = ?, result = ?, error = ?, completed_at = ?, execution_time_ms = ?
+                       WHERE id = ?""",
+                    (status, result, error, now, execution_time, task_id),
+                )
+            else:
+                await self._connection.execute(
+                    "UPDATE proactive_tasks SET status = ? WHERE id = ?",
+                    (status, task_id),
+                )
+            await self._connection.commit()
+
+    async def delete_proactive_task(self, task_id: str) -> None:
+        """Delete a proactive task"""
+        async with self._lock:
+            await self._connection.execute(
+                "DELETE FROM proactive_tasks WHERE id = ?", (task_id,)
+            )
+            await self._connection.commit()
+
+    async def get_pending_proactive_tasks(self) -> List[Dict[str, Any]]:
+        """Get pending proactive tasks that are due"""
+        now = int(time.time() * 1000)
+        cursor = await self._connection.execute(
+            """SELECT * FROM proactive_tasks
+               WHERE status IN ('pending', 'scheduled')
+               AND (scheduled_time IS NULL OR scheduled_time <= ?)
+               ORDER BY priority DESC, scheduled_time ASC""",
+            (now,),
+        )
+        rows = await cursor.fetchall()
+        results = []
+        for row in rows:
+            result = dict(row)
+            if result.get('context') and isinstance(result['context'], str):
+                try:
+                    result['context'] = json.loads(result['context'])
+                except:
+                    pass
+            results.append(result)
+        return results
+
+    # ==================== Wakeup Trigger Operations ====================
+
+    async def save_wakeup_trigger(self, trigger: Dict[str, Any]) -> None:
+        """Save a wakeup trigger"""
+        async with self._lock:
+            metadata_json = json.dumps(trigger.get('metadata')) if trigger.get('metadata') else None
+
+            await self._connection.execute(
+                """
+                INSERT OR REPLACE INTO wakeup_triggers
+                (id, type, name, enabled, scheduled_time, interval_seconds, last_triggered, priority, reason, metadata)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    trigger['id'],
+                    trigger['type'],
+                    trigger['name'],
+                    1 if trigger.get('enabled', True) else 0,
+                    trigger.get('scheduled_time'),
+                    trigger.get('interval_seconds'),
+                    trigger.get('last_triggered'),
+                    trigger.get('priority', 5),
+                    trigger.get('reason'),
+                    metadata_json,
+                ),
+            )
+            await self._connection.commit()
+
+    async def get_wakeup_triggers(self, enabled_only: bool = True) -> List[Dict[str, Any]]:
+        """Get wakeup triggers"""
+        if enabled_only:
+            cursor = await self._connection.execute(
+                "SELECT * FROM wakeup_triggers WHERE enabled = 1 ORDER BY priority DESC"
+            )
+        else:
+            cursor = await self._connection.execute(
+                "SELECT * FROM wakeup_triggers ORDER BY priority DESC"
+            )
+        rows = await cursor.fetchall()
+        results = []
+        for row in rows:
+            result = dict(row)
+            if result.get('metadata') and isinstance(result['metadata'], str):
+                try:
+                    result['metadata'] = json.loads(result['metadata'])
+                except:
+                    pass
+            results.append(result)
+        return results
+
+    async def update_wakeup_trigger(self, trigger_id: str, updates: Dict[str, Any]) -> None:
+        """Update a wakeup trigger"""
+        async with self._lock:
+            # Build update query dynamically
+            set_clauses = []
+            values = []
+
+            for key, value in updates.items():
+                if key in ('enabled', 'scheduled_time', 'interval_seconds', 'last_triggered', 'priority', 'reason'):
+                    set_clauses.append(f"{key} = ?")
+                    if key == 'enabled':
+                        values.append(1 if value else 0)
+                    else:
+                        values.append(value)
+                elif key == 'metadata':
+                    set_clauses.append("metadata = ?")
+                    values.append(json.dumps(value) if value else None)
+
+            if set_clauses:
+                values.append(trigger_id)
+                query = f"UPDATE wakeup_triggers SET {', '.join(set_clauses)} WHERE id = ?"
+                await self._connection.execute(query, values)
+                await self._connection.commit()
+
+    async def delete_wakeup_trigger(self, trigger_id: str) -> None:
+        """Delete a wakeup trigger"""
+        async with self._lock:
+            await self._connection.execute(
+                "DELETE FROM wakeup_triggers WHERE id = ?", (trigger_id,)
+            )
+            await self._connection.commit()
