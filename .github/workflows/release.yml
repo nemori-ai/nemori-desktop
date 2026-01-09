@@ -12,7 +12,7 @@ env:
 
 jobs:
   build-macos-x64:
-    runs-on: macos-13  # Intel Mac
+    runs-on: macos-15-intel  # Intel Mac (macos-13 retired)
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -54,9 +54,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos-x64-builds
-          path: |
-            frontend/dist/*.dmg
-            frontend/dist/*.zip
+          path: frontend/dist/*.dmg
           if-no-files-found: error
 
   build-macos-arm64:
@@ -102,9 +100,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos-arm64-builds
-          path: |
-            frontend/dist/*.dmg
-            frontend/dist/*.zip
+          path: frontend/dist/*.dmg
           if-no-files-found: error
 
   build-windows:
