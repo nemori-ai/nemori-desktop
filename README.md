@@ -37,13 +37,38 @@ Nemori follows a **frontend-backend separation** architecture:
 - **Vector Search**: Semantic similarity search using ChromaDB
 - **Local-first**: All data stored locally on your machine
 
-## Prerequisites
+## Download & Install
+
+Download the latest release from [GitHub Releases](https://github.com/nemori-ai/nemori-desktop/releases).
+
+### macOS
+
+1. Download `nemori-x.x.x-arm64.dmg` (Apple Silicon) or `nemori-x.x.x-x64.dmg` (Intel)
+2. Open the DMG and drag Nemori to Applications
+3. **Important**: If you see "Nemori is damaged" or "can't be opened", run this command in Terminal:
+   ```bash
+   xattr -cr /Applications/Nemori.app
+   ```
+4. Open Nemori from Applications
+
+### Windows
+
+1. Download `nemori-x.x.x-setup.exe`
+2. Run the installer and follow the prompts
+
+### Linux
+
+1. Download `nemori-x.x.x.AppImage`
+2. Make it executable: `chmod +x nemori-*.AppImage`
+3. Run the AppImage
+
+## Development
+
+### Prerequisites
 
 - Node.js 18+
 - Python 3.10+
 - pnpm (recommended) or npm
-
-## Installation
 
 ### 1. Install Backend Dependencies
 
