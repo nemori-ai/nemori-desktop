@@ -240,7 +240,20 @@ app.whenReady().then(async () => {
 
   // Start Python backend first (to get dynamic port)
   backendService = new BackendService()
-  await backendService.start()
+  const backendStarted = await backendService.start()
+
+  if (!backendStarted) {
+    console.error('Failed to start backend service')
+    // Show error dialog and quit
+    const { dialog } = require('electron')
+    dialog.showErrorBox(
+      'Backend Start Failed',
+      'Failed to start the Nemori backend service. Please check the logs and try again.'
+    )
+    app.quit()
+    return
+  }
+
   console.log('Backend service started at', backendService.getUrl())
 
   // Initialize screenshot service with dynamic URL getter

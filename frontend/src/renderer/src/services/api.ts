@@ -7,28 +7,61 @@ let BASE_URL = ''
 let isInitialized = false
 let initializationPromise: Promise<void> | null = null
 
-// Initialize API base URL from Electron main process
-export async function initializeApi(): Promise<void> {
-  // Return existing promise if already initializing
-  if (initializationPromise) {
-    return initializationPromise
-  }
+// Helper function to wait
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
+// Initialize API base URL from Electron main process with retry
+export async function initializeApi(): Promise<void> {
+  // Return existing promise if already initializing successfully
   if (isInitialized) {
     return
   }
 
+  // If there's an existing promise that's still pending, wait for it
+  if (initializationPromise) {
+    try {
+      await initializationPromise
+      return
+    } catch {
+      // Previous attempt failed, clear and retry
+      initializationPromise = null
+    }
+  }
+
   initializationPromise = (async () => {
-    if (window.api?.backend?.getUrl) {
-      BASE_URL = await window.api.backend.getUrl()
-      isInitialized = true
-      console.log('[API] Initialized with URL:', BASE_URL)
-    } else {
-      throw new Error('Backend API not available - running outside Electron?')
+    const maxRetries = 10
+    const retryDelay = 500 // ms
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        if (!window.api?.backend?.getUrl) {
+          throw new Error('Backend API not available - running outside Electron?')
+        }
+
+        BASE_URL = await window.api.backend.getUrl()
+        isInitialized = true
+        console.log(`[API] Initialized with URL: ${BASE_URL} (attempt ${attempt})`)
+        return
+      } catch (error) {
+        console.warn(`[API] Initialization attempt ${attempt}/${maxRetries} failed:`, error)
+
+        if (attempt === maxRetries) {
+          throw new Error(`Failed to initialize API after ${maxRetries} attempts: ${error}`)
+        }
+
+        // Wait before retrying
+        await sleep(retryDelay)
+      }
     }
   })()
 
-  return initializationPromise
+  try {
+    await initializationPromise
+  } catch (error) {
+    // Clear the failed promise so next call can retry
+    initializationPromise = null
+    throw error
+  }
 }
 
 class ApiService {
