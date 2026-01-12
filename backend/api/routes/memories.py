@@ -105,6 +105,19 @@ async def trigger_batch_processing():
     return {"success": True, "message": "Batch processing triggered"}
 
 
+@router.post("/flush-batch")
+async def flush_batch():
+    """Force process all pending messages regardless of batch size"""
+    memory = MemoryService.get_instance()
+    await memory.flush_batch()
+    stats = await memory.get_stats()
+    return {
+        "success": True,
+        "message": "Batch flush completed",
+        "stats": stats
+    }
+
+
 @router.post("/backfill-screenshots")
 async def backfill_screenshots():
     """

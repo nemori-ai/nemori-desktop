@@ -8,6 +8,7 @@ Can be run in two modes:
 import argparse
 import os
 import sys
+import time
 import uvicorn
 from contextlib import asynccontextmanager
 
@@ -17,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api import router as api_router
 from config.settings import settings
 from storage.database import Database
+from storage.vector_store import VectorStore
 from services.llm_service import LLMService
 from services.memory_service import MemoryService
 from services.screenshot_service import ScreenshotService
@@ -25,6 +27,25 @@ from services.screenshot_service import ScreenshotService
 if os.environ.get('NEMORI_DATA_DIR'):
     from pathlib import Path
     settings.data_dir = Path(os.environ['NEMORI_DATA_DIR'])
+
+
+def _init_vector_store_with_retry(max_retries: int = 3) -> None:
+    """Initialize VectorStore with retry logic to handle ChromaDB initialization bugs"""
+    for attempt in range(max_retries):
+        try:
+            vector_store = VectorStore.get_instance()
+            # Verify it's working by calling count()
+            vector_store.count()
+            print(f"VectorStore initialized successfully (attempt {attempt + 1})")
+            return
+        except Exception as e:
+            print(f"VectorStore initialization attempt {attempt + 1} failed: {e}")
+            # Reset the singleton to allow retry
+            VectorStore._instance = None
+            if attempt < max_retries - 1:
+                time.sleep(0.5)  # Brief delay before retry
+            else:
+                print("Warning: VectorStore initialization failed after all retries, continuing without vector store")
 
 
 @asynccontextmanager
@@ -37,6 +58,10 @@ async def lifespan(app: FastAPI):
     db = Database.get_instance()
     await db.initialize()
     print(f"Database initialized at: {db.db_path}")
+
+    # Initialize VectorStore early with retry logic to avoid first-request errors
+    # This addresses ChromaDB bug: https://github.com/chroma-core/chroma/issues/5909
+    _init_vector_store_with_retry()
 
     # Initialize services
     llm_service = LLMService.get_instance()

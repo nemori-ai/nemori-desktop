@@ -33,9 +33,7 @@ jobs:
         working-directory: backend
         run: |
           pyinstaller nemori-backend.spec --clean --noconfirm
-          mkdir -p ../backend-dist/mac
-          cp -r dist/nemori-backend ../backend-dist/mac/
-          chmod +x ../backend-dist/mac/nemori-backend/nemori-backend
+          chmod +x dist/nemori-backend/nemori-backend
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -79,9 +77,7 @@ jobs:
         working-directory: backend
         run: |
           pyinstaller nemori-backend.spec --clean --noconfirm
-          mkdir -p ../backend-dist/mac
-          cp -r dist/nemori-backend ../backend-dist/mac/
-          chmod +x ../backend-dist/mac/nemori-backend/nemori-backend
+          chmod +x dist/nemori-backend/nemori-backend
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -123,11 +119,7 @@ jobs:
 
       - name: Build Python backend with PyInstaller
         working-directory: backend
-        shell: bash
-        run: |
-          pyinstaller nemori-backend.spec --clean --noconfirm
-          mkdir -p ../backend-dist/win
-          cp -r dist/nemori-backend ../backend-dist/win/
+        run: pyinstaller nemori-backend.spec --clean --noconfirm
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

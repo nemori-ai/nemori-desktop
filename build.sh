@@ -5,7 +5,6 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$SCRIPT_DIR/backend"
 FRONTEND_DIR="$SCRIPT_DIR/frontend"
-BACKEND_DIST_DIR="$SCRIPT_DIR/backend-dist"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -137,31 +136,13 @@ build_backend() {
     pyinstaller nemori-backend.spec --clean --noconfirm
 
     local platform=$(detect_platform)
-    local dist_subdir
 
-    case "$platform" in
-        mac-arm64|mac-x64)
-            dist_subdir="mac"
-            ;;
-        win)
-            dist_subdir="win"
-            ;;
-        linux)
-            dist_subdir="linux"
-            ;;
-        *)
-            dist_subdir="unknown"
-            ;;
-    esac
-
-    mkdir -p "$BACKEND_DIST_DIR/$dist_subdir"
-    cp -r dist/nemori-backend "$BACKEND_DIST_DIR/$dist_subdir/"
-
+    # Set executable permissions on Unix systems
     if [[ "$platform" != "win" ]]; then
-        chmod +x "$BACKEND_DIST_DIR/$dist_subdir/nemori-backend/nemori-backend"
+        chmod +x "$BACKEND_DIR/dist/nemori-backend/nemori-backend"
     fi
 
-    print_success "Backend built: $BACKEND_DIST_DIR/$dist_subdir/nemori-backend/"
+    print_success "Backend built: $BACKEND_DIR/dist/nemori-backend/"
 
     deactivate 2>/dev/null || true
 
@@ -236,7 +217,7 @@ build_all() {
     build_frontend "$target"
 
     print_header "Build Complete!"
-    echo -e "Backend: ${GREEN}$BACKEND_DIST_DIR/${NC}"
+    echo -e "Backend: ${GREEN}$BACKEND_DIR/dist/nemori-backend/${NC}"
     echo -e "Frontend: ${GREEN}$FRONTEND_DIR/dist/${NC}"
 }
 
@@ -245,7 +226,6 @@ clean() {
 
     rm -rf "$BACKEND_DIR/dist"
     rm -rf "$BACKEND_DIR/build"
-    rm -rf "$BACKEND_DIST_DIR"
     rm -rf "$FRONTEND_DIR/dist"
     rm -rf "$FRONTEND_DIR/out"
 
