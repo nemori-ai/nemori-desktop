@@ -123,7 +123,14 @@ build_backend() {
         pip install pyinstaller
     fi
 
-    print_success "Installing backend dependencies..."
+    # Clean previous build artifacts to ensure fresh build
+    print_success "Cleaning previous build artifacts..."
+    rm -rf dist build __pycache__
+    find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+    find . -type f -name "*.pyc" -delete 2>/dev/null || true
+
+    print_success "Installing backend dependencies (force reinstall)..."
+    pip install . --force-reinstall --no-deps
     pip install .
 
     print_success "Running PyInstaller..."

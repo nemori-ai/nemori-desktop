@@ -26,19 +26,43 @@ pip3 --version
 
 ## Quick Start
 
+### 重要：构建顺序
+
+**每次修改后端代码后，必须按以下顺序构建：**
+
+1. **先构建后端** - 重新打包 Python 后端
+2. **再构建前端** - 将后端打包到 Electron 应用中
+
+如果只构建前端而不重新构建后端，打包的应用会使用旧的后端代码！
+
+### 手动构建命令
+
+```bash
+# 1. 构建后端
+cd backend
+source .venv/bin/activate  # 激活虚拟环境
+pyinstaller nemori-backend.spec --clean --noconfirm
+
+# 2. 构建前端（会自动包含后端）
+cd ../frontend
+npm run build:mac   # 或 build:win, build:linux
+```
+
+### 使用构建脚本
+
 使用根目录的 `build.sh` 脚本进行一键构建：
 
 ```bash
 # 交互式模式
 ./build.sh
 
-# 命令行模式 - 构建全部
+# 命令行模式 - 构建全部（推荐）
 ./build.sh --all
 
 # 仅构建后端
 ./build.sh --backend
 
-# 仅构建前端
+# 仅构建前端（前提是后端已经构建好）
 ./build.sh --frontend
 
 # 清理构建产物
@@ -162,14 +186,14 @@ npx electron-builder --linux --publish never
 # 后端资源路径（目录模式结构）
 mac:
   extraResources:
-    - from: "../backend-dist/mac/nemori-backend/"
+    - from: "../backend/dist/nemori-backend/"
       to: "backend/nemori-backend"
       filter:
         - "**/*"
 
 win:
   extraResources:
-    - from: "../backend-dist/win/nemori-backend/"
+    - from: "../backend/dist/nemori-backend/"
       to: "backend/nemori-backend"
       filter:
         - "**/*"
@@ -181,22 +205,21 @@ win:
 
 ```
 Nemori/
-├── backend-dist/
-│   ├── mac/
-│   │   └── nemori-backend/
-│   │       ├── nemori-backend      # 可执行文件
-│   │       ├── _internal/          # Python 依赖
-│   │       └── ...
-│   └── win/
+├── backend/
+│   └── dist/
 │       └── nemori-backend/
-│           ├── nemori-backend.exe
+│           ├── nemori-backend      # 可执行文件 (macOS/Linux)
+│           ├── nemori-backend.exe  # 可执行文件 (Windows)
+│           ├── _internal/          # Python 依赖
 │           └── ...
 ├── frontend/
 │   └── dist/
-│       ├── Nemori-1.0.0-arm64.dmg  # macOS ARM64
-│       ├── Nemori-1.0.0-x64.dmg    # macOS Intel
-│       └── Nemori-1.0.0-setup.exe  # Windows
+│       ├── nemori-1.0.0-arm64.dmg  # macOS ARM64
+│       ├── nemori-1.0.0-x64.dmg    # macOS Intel
+│       └── nemori-1.0.0-setup.exe  # Windows
 ```
+
+**重要**: 后端只需要构建一次，PyInstaller 会根据当前系统生成对应平台的可执行文件。
 
 ## Runtime Backend Detection
 
@@ -217,16 +240,20 @@ const candidates = [
 
 ## Port Selection
 
-生产模式下，后端使用随机可用端口启动，避免端口冲突：
+开发模式和生产模式都使用随机可用端口启动，避免端口冲突：
 
 ```typescript
 import { getRandomPort } from 'get-port-please'
 
-// 生产模式
 this.port = await getRandomPort(this.host)
 ```
 
-开发模式下使用固定端口 `21978`。
+前端通过 IPC 调用 `window.api.backend.getUrl()` 获取后端的实际 URL。
+
+**注意**: 如果单独启动后端进行调试（不通过 Electron），可以指定端口：
+```bash
+python main.py --port 21978
+```
 
 ## Platform-Specific Notes
 
@@ -259,8 +286,9 @@ this.port = await getRandomPort(this.host)
 ### 前端找不到后端
 
 1. 检查 electron-builder.yml 中的 `extraResources` 路径
-2. 确认 backend-dist 目录结构正确
+2. 确认 `backend/dist/nemori-backend/` 目录结构正确
 3. 检查 BackendService.ts 中的候选路径
+4. **重要**: 每次修改后端代码后，必须重新运行 `pyinstaller nemori-backend.spec --clean` 重新打包后端
 
 ### 冷启动慢
 

@@ -231,11 +231,18 @@ const isMacOS = navigator.userAgent.includes('Mac')
 
 ```typescript
 // services/api.ts
-class ApiService {
-  private baseUrl: string = 'http://127.0.0.1:21978'
+// 注意：生产模式下使用动态端口，通过 Electron IPC 获取
+let BASE_URL = ''
 
+export async function initializeApi(): Promise<void> {
+  // 从 Electron 主进程获取后端 URL（包含动态端口）
+  BASE_URL = await window.api.backend.getUrl()
+}
+
+class ApiService {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const response = await fetch(`${this.baseUrl}/api${endpoint}`, {
+    if (!BASE_URL) await initializeApi()
+    const response = await fetch(`${BASE_URL}/api${endpoint}`, {
       ...options,
       headers: { 'Content-Type': 'application/json', ...options.headers }
     })
@@ -245,7 +252,8 @@ class ApiService {
 
   // SSE Streaming
   async streamMessage(content: string, onChunk: (chunk: string) => void): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/api/chat/stream`, { /* ... */ })
+    if (!BASE_URL) await initializeApi()
+    const response = await fetch(`${BASE_URL}/api/chat/stream`, { /* ... */ })
     const reader = response.body?.getReader()
     const decoder = new TextDecoder('utf-8')
     // Process SSE events...
@@ -254,6 +262,8 @@ class ApiService {
 
 export const api = new ApiService()
 ```
+
+**重要**: 生产模式下后端使用随机可用端口启动，避免端口冲突。前端必须通过 `window.api.backend.getUrl()` 获取实际的后端 URL。
 
 ## Common Issues & Solutions
 

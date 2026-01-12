@@ -1,6 +1,6 @@
-import { spawn, ChildProcess } from 'child_process'
+import { spawn, ChildProcess, spawnSync } from 'child_process'
 import { app } from 'electron'
-import { join } from 'path'
+import { join, dirname } from 'path'
 import { existsSync, chmodSync } from 'fs'
 import { homedir } from 'os'
 import http from 'http'
@@ -98,6 +98,24 @@ export class BackendService {
     this.port = await getRandomPort(this.host)
     console.log('[Production] Starting bundled backend:', executablePath)
     console.log('[Production] Using port:', this.port)
+
+    // On macOS, remove quarantine attributes to allow execution
+    // This is needed because the backend is not signed with an Apple Developer certificate
+    if (process.platform === 'darwin') {
+      const backendDir = dirname(executablePath)
+      console.log('[Production] Removing quarantine attributes from:', backendDir)
+      try {
+        // Remove quarantine attributes recursively from the backend directory
+        const result = spawnSync('xattr', ['-cr', backendDir], { timeout: 10000 })
+        if (result.status === 0) {
+          console.log('[Production] Quarantine attributes removed successfully')
+        } else {
+          console.warn('[Production] Failed to remove quarantine attributes:', result.stderr?.toString())
+        }
+      } catch (error) {
+        console.warn('[Production] Error removing quarantine attributes:', error)
+      }
+    }
 
     // Ensure executable has correct permissions on Unix
     if (process.platform !== 'win32') {

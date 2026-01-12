@@ -104,7 +104,7 @@ pnpm dev
 npm run dev
 ```
 
-The application will automatically connect to the backend at `http://127.0.0.1:21978`.
+The application will automatically connect to the backend using a random available port (both development and production modes).
 
 ## Configuration
 
@@ -197,9 +197,11 @@ Nemori/
 
 ## API Documentation
 
-When the backend is running, API documentation is available at:
+When the backend is running in development mode, API documentation is available at:
 - Swagger UI: http://127.0.0.1:21978/docs
 - ReDoc: http://127.0.0.1:21978/redoc
+
+Note: In production mode, the backend uses a random port. Check the application logs for the actual port.
 
 ## License
 
