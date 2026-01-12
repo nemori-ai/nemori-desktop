@@ -1,8 +1,9 @@
-import { app, shell, BrowserWindow, ipcMain, screen, nativeTheme } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, screen, nativeTheme, systemPreferences } from 'electron'
 import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
 import { BackendService } from './services/BackendService'
 import { TrayService } from './services/TrayService'
+import { ScreenshotService } from './services/ScreenshotService'
 
 // Replace @electron-toolkit/utils with native implementations
 // Use getter to delay app.isPackaged check until electron is ready
@@ -59,6 +60,7 @@ const optimizer = {
 let mainWindow: BrowserWindow | null = null
 let trayService: TrayService | null = null
 let backendService: BackendService | null = null
+let screenshotService: ScreenshotService | null = null
 
 function createWindow(): void {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize
@@ -170,6 +172,54 @@ function setupIpcHandlers(): void {
     return backendService?.isRunning()
   })
 
+  // Screenshot service handlers
+  ipcMain.handle('screenshot:checkPermission', () => {
+    return screenshotService?.checkPermission() || { granted: false, canRequest: false }
+  })
+
+  ipcMain.handle('screenshot:getMonitors', async () => {
+    return (await screenshotService?.getMonitors()) || []
+  })
+
+  ipcMain.handle('screenshot:getPreview', async (_event, monitorId: string) => {
+    return await screenshotService?.getMonitorPreview(monitorId)
+  })
+
+  ipcMain.handle('screenshot:setMonitor', (_event, monitorId: string) => {
+    screenshotService?.setSelectedMonitor(monitorId)
+    return true
+  })
+
+  ipcMain.handle('screenshot:getSelectedMonitor', () => {
+    return screenshotService?.getSelectedMonitor()
+  })
+
+  ipcMain.handle('screenshot:capture', async () => {
+    return await screenshotService?.capture()
+  })
+
+  ipcMain.handle('screenshot:openPermissionSettings', () => {
+    if (process.platform === 'darwin') {
+      shell.openExternal(
+        'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'
+      )
+    }
+    return true
+  })
+
+  ipcMain.handle('screenshot:startCapture', async (_event, intervalMs?: number) => {
+    // Backend URL is now dynamically retrieved via getter function
+    return await screenshotService?.startCapture(intervalMs)
+  })
+
+  ipcMain.handle('screenshot:stopCapture', () => {
+    return screenshotService?.stopCapture()
+  })
+
+  ipcMain.handle('screenshot:getCaptureStatus', () => {
+    return screenshotService?.getCaptureStatus()
+  })
+
   console.log('IPC handlers registered')
 }
 
@@ -185,10 +235,15 @@ app.whenReady().then(async () => {
   // Setup IPC handlers
   setupIpcHandlers()
 
-  // Start Python backend
+  // Start Python backend first (to get dynamic port)
   backendService = new BackendService()
   await backendService.start()
-  console.log('Backend service started')
+  console.log('Backend service started at', backendService.getUrl())
+
+  // Initialize screenshot service with dynamic URL getter
+  // This ensures ScreenshotService always uses the current backend port
+  screenshotService = new ScreenshotService(() => backendService?.getUrl() || 'http://127.0.0.1:21978')
+  console.log('Screenshot service initialized')
 
   // Create window
   createWindow()

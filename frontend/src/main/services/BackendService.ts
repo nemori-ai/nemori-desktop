@@ -2,6 +2,7 @@ import { spawn, ChildProcess } from 'child_process'
 import { app } from 'electron'
 import { join } from 'path'
 import { existsSync, chmodSync } from 'fs'
+import { homedir } from 'os'
 import http from 'http'
 import { getRandomPort } from 'get-port-please'
 
@@ -110,14 +111,18 @@ export class BackendService {
     }
 
     // Start the bundled backend
-    // Note: Don't override NEMORI_DATA_DIR - let backend use its default XDG path
-    // This ensures consistency between development and production modes
+    // Set NEMORI_DATA_DIR explicitly to ensure consistency between dev and production
+    // Use XDG standard path: ~/.local/share/Nemori
+    const dataDir = join(homedir(), '.local', 'share', 'Nemori')
+    console.log('[Production] Using data directory:', dataDir)
+
     this.process = spawn(
       executablePath,
       ['--host', this.host, '--port', String(this.port)],
       {
         env: {
-          ...process.env
+          ...process.env,
+          NEMORI_DATA_DIR: dataDir
         },
         stdio: ['ignore', 'pipe', 'pipe']
       }

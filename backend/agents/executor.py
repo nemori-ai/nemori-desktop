@@ -358,9 +358,11 @@ class AgentExecutor:
 
         try:
             # Use LangChain's native streaming
+            # Set recursion_limit higher for complex tasks (default is 25)
             async for event in agent.astream(
                 {"messages": messages},
-                stream_mode="values"
+                stream_mode="values",
+                config={"recursion_limit": 50}
             ):
                 # Process each streamed event
                 all_messages = event.get("messages", [])

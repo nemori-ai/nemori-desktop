@@ -50,6 +50,8 @@ class VectorStore:
         document: str
     ) -> None:
         """Add a single embedding to the collection"""
+        if self._collection is None:
+            raise RuntimeError("VectorStore not initialized")
         self._collection.add(
             ids=[id],
             embeddings=[embedding],
@@ -65,6 +67,8 @@ class VectorStore:
         documents: List[str]
     ) -> None:
         """Add multiple embeddings to the collection"""
+        if self._collection is None:
+            raise RuntimeError("VectorStore not initialized")
         self._collection.add(
             ids=ids,
             embeddings=embeddings,
@@ -80,6 +84,8 @@ class VectorStore:
         where_document: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Query the collection for similar embeddings"""
+        if self._collection is None:
+            return {"ids": [[]], "documents": [[]], "metadatas": [[]], "distances": [[]]}
         return self._collection.query(
             query_embeddings=[query_embedding],
             n_results=n_results,
@@ -95,6 +101,8 @@ class VectorStore:
         where: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Query using text (requires embedding function to be set)"""
+        if self._collection is None:
+            return {"ids": [[]], "documents": [[]], "metadatas": [[]], "distances": [[]]}
         return self._collection.query(
             query_texts=[text],
             n_results=n_results,
@@ -109,6 +117,8 @@ class VectorStore:
         limit: int = 100
     ) -> Dict[str, Any]:
         """Get embeddings by IDs or filter"""
+        if self._collection is None:
+            return {"ids": [], "documents": [], "metadatas": [], "embeddings": []}
         return self._collection.get(
             ids=ids,
             where=where,
@@ -124,6 +134,8 @@ class VectorStore:
         document: Optional[str] = None
     ) -> None:
         """Update an existing embedding"""
+        if self._collection is None:
+            raise RuntimeError("VectorStore not initialized")
         self._collection.update(
             ids=[id],
             embeddings=[embedding] if embedding else None,
@@ -133,10 +145,14 @@ class VectorStore:
 
     def delete(self, ids: List[str]) -> None:
         """Delete embeddings by IDs"""
+        if self._collection is None:
+            return
         self._collection.delete(ids=ids)
 
     def count(self) -> int:
         """Get the number of embeddings in the collection"""
+        if self._collection is None:
+            return 0
         return self._collection.count()
 
     def reset(self) -> None:

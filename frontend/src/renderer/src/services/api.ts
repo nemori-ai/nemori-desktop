@@ -279,10 +279,40 @@ class ApiService {
   }
 
   async getCaptureStatus(): Promise<CaptureStatus> {
-    return this.request('/screenshots/status')
+    const status = await this.request<CaptureStatus>('/screenshots/status')
+
+    // Get monitors and capture status from Electron (to avoid mss permission issues)
+    if (window.api?.screenshot) {
+      const monitors = await window.api.screenshot.getMonitors()
+      const selected = await window.api.screenshot.getSelectedMonitor()
+      const electronStatus = await window.api.screenshot.getCaptureStatus()
+
+      status.monitors = monitors.map((m, index) => ({
+        id: index,
+        name: m.name,
+        width: m.width,
+        height: m.height,
+        left: m.x,
+        top: m.y
+      }))
+      status.selected_monitor = selected ? monitors.findIndex((m) => m.id === selected) : 0
+      // Use Electron's capture status instead of backend's
+      status.is_capturing = electronStatus.isCapturing
+      status.interval_ms = electronStatus.intervalMs
+    }
+
+    return status
   }
 
   async startCapture(intervalMs?: number): Promise<{ success: boolean; status: CaptureStatus }> {
+    // Use Electron's capture service to avoid mss permission issues
+    if (window.api?.screenshot) {
+      const success = await window.api.screenshot.startCapture(intervalMs)
+      const status = await this.getCaptureStatus()
+      return { success, status }
+    }
+
+    // Fallback to backend (for development without Electron)
     return this.request('/screenshots/start', {
       method: 'POST',
       body: JSON.stringify({ interval_ms: intervalMs })
@@ -290,12 +320,48 @@ class ApiService {
   }
 
   async stopCapture(): Promise<{ success: boolean; status: CaptureStatus }> {
+    // Use Electron's capture service to avoid mss permission issues
+    if (window.api?.screenshot) {
+      const success = await window.api.screenshot.stopCapture()
+      const status = await this.getCaptureStatus()
+      return { success, status }
+    }
+
+    // Fallback to backend (for development without Electron)
     return this.request('/screenshots/stop', {
       method: 'POST'
     })
   }
 
-  async captureNow(): Promise<{ success: boolean; screenshot?: Screenshot }> {
+  async captureNow(): Promise<{ success: boolean; screenshot?: Screenshot; error?: string }> {
+    // Use Electron's screenshot API for proper permission handling on macOS
+    if (window.api?.screenshot) {
+      // Check permission first
+      const permission = await window.api.screenshot.checkPermission()
+      if (!permission.granted) {
+        return {
+          success: false,
+          error: 'Screen recording permission not granted. Please enable it in System Settings > Privacy & Security > Screen Recording.'
+        }
+      }
+
+      // Capture using Electron
+      const result = await window.api.screenshot.capture()
+      if (!result.success || !result.imageData) {
+        return { success: false, error: result.error || 'Capture failed' }
+      }
+
+      // Upload to backend
+      return this.request('/screenshots/upload', {
+        method: 'POST',
+        body: JSON.stringify({
+          image_data: result.imageData,
+          monitor_id: result.monitorId
+        })
+      })
+    }
+
+    // Fallback to backend capture (for development without Electron)
     return this.request('/screenshots/capture-now', {
       method: 'POST'
     })
@@ -320,23 +386,96 @@ class ApiService {
     })
   }
 
-  async getMonitors(): Promise<{ monitors: Monitor[]; selected: number }> {
+  async getMonitors(): Promise<{ monitors: Monitor[]; selected: number | string }> {
+    // Use Electron's monitor API if available
+    if (window.api?.screenshot) {
+      const monitors = await window.api.screenshot.getMonitors()
+      const selected = await window.api.screenshot.getSelectedMonitor()
+      return {
+        monitors: monitors.map((m, index) => ({
+          id: index, // Convert string ID to index for compatibility
+          name: m.name,
+          width: m.width,
+          height: m.height,
+          left: m.x,
+          top: m.y,
+          electronId: m.id // Keep the original Electron ID
+        })) as Monitor[],
+        selected: selected ? monitors.findIndex((m) => m.id === selected) : 0
+      }
+    }
+
+    // Fallback to backend
     return this.request('/screenshots/monitors')
   }
 
-  async selectMonitor(monitorId: number): Promise<{ success: boolean; selected: number; monitors: Monitor[] }> {
+  async selectMonitor(
+    monitorId: number | string
+  ): Promise<{ success: boolean; selected: number | string; monitors: Monitor[] }> {
+    // Use Electron's monitor selection if available
+    if (window.api?.screenshot) {
+      const monitors = await window.api.screenshot.getMonitors()
+      const monitor = typeof monitorId === 'number' ? monitors[monitorId] : monitors.find((m) => m.id === monitorId)
+      if (monitor) {
+        await window.api.screenshot.setMonitor(monitor.id)
+        return {
+          success: true,
+          selected: monitorId,
+          monitors: monitors.map((m, index) => ({
+            id: index,
+            name: m.name,
+            width: m.width,
+            height: m.height,
+            left: m.x,
+            top: m.y,
+            electronId: m.id
+          })) as Monitor[]
+        }
+      }
+      return { success: false, selected: 0, monitors: [] }
+    }
+
+    // Fallback to backend
     return this.request('/screenshots/monitors/select', {
       method: 'POST',
       body: JSON.stringify({ monitor_id: monitorId })
     })
   }
 
-  async getMonitorPreview(monitorId: number): Promise<Blob> {
+  async getMonitorPreview(monitorId: number | string): Promise<string | Blob> {
+    // Use Electron's preview API if available
+    if (window.api?.screenshot) {
+      const monitors = await window.api.screenshot.getMonitors()
+      const monitor = typeof monitorId === 'number' ? monitors[monitorId] : monitors.find((m) => m.id === monitorId)
+      if (monitor) {
+        const preview = await window.api.screenshot.getPreview(monitor.id)
+        if (preview) {
+          return preview // Returns data URL string
+        }
+      }
+      throw new Error('Monitor not found')
+    }
+
+    // Fallback to backend
     const response = await fetch(`${this.baseUrl}/api/screenshots/monitors/${monitorId}/preview`)
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
     return response.blob()
+  }
+
+  async checkScreenshotPermission(): Promise<{ granted: boolean; canRequest: boolean }> {
+    if (window.api?.screenshot) {
+      return window.api.screenshot.checkPermission()
+    }
+    // Backend doesn't have permission issues on non-macOS
+    return { granted: true, canRequest: false }
+  }
+
+  async openScreenshotPermissionSettings(): Promise<void> {
+    if (window.api?.screenshot) {
+      await window.api.screenshot.openPermissionSettings()
+    }
   }
 
   // ==================== Settings API ====================

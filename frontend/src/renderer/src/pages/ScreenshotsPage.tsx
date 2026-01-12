@@ -14,6 +14,7 @@ export default function ScreenshotsPage(): JSX.Element {
   const [showMonitorPicker, setShowMonitorPicker] = useState(false)
   const [monitorPreviews, setMonitorPreviews] = useState<Record<number, string>>({})
   const [loadingPreviews, setLoadingPreviews] = useState(false)
+  const [permissionError, setPermissionError] = useState<string | null>(null)
 
   // Date-based loading state
   const [availableDates, setAvailableDates] = useState<string[]>([])
@@ -128,14 +129,21 @@ export default function ScreenshotsPage(): JSX.Element {
 
   const handleCaptureNow = async (): Promise<void> => {
     try {
-      const { success, screenshot } = await api.captureNow()
-      if (success && screenshot) {
+      const result = await api.captureNow()
+      if (result.success && result.screenshot) {
         // If viewing today, add the new screenshot
         if (selectedDate === getTodayDateStr()) {
-          setScreenshots((prev) => [screenshot, ...prev])
+          setScreenshots((prev) => [result.screenshot!, ...prev])
         }
         // Refresh dates in case this is the first screenshot of the day
         loadAvailableDates()
+      } else if (result.error) {
+        // Show permission error with option to open settings
+        if (result.error.includes('permission')) {
+          setPermissionError(result.error)
+        } else {
+          console.error('Capture failed:', result.error)
+        }
       }
     } catch (error) {
       console.error('Failed to capture:', error)
@@ -173,8 +181,13 @@ export default function ScreenshotsPage(): JSX.Element {
       const previews: Record<number, string> = {}
       for (const mon of captureStatus.monitors) {
         try {
-          const blob = await api.getMonitorPreview(mon.id)
-          previews[mon.id] = URL.createObjectURL(blob)
+          const result = await api.getMonitorPreview(mon.id)
+          // Handle both data URL string and Blob
+          if (typeof result === 'string') {
+            previews[mon.id] = result
+          } else {
+            previews[mon.id] = URL.createObjectURL(result)
+          }
         } catch (e) {
           console.error(`Failed to load preview for monitor ${mon.id}:`, e)
         }
@@ -251,6 +264,37 @@ export default function ScreenshotsPage(): JSX.Element {
           </button>
         </div>
       </div>
+
+      {/* Permission error banner */}
+      {permissionError && (
+        <div className="mb-4 p-4 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-destructive/20 flex items-center justify-center">
+              <CameraOff className="w-4 h-4 text-destructive" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-destructive">Screen Recording Permission Required</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Please enable screen recording permission for Nemori in System Settings.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => api.openScreenshotPermissionSettings()}
+              className="px-3 py-1.5 text-sm rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
+            >
+              Open Settings
+            </button>
+            <button
+              onClick={() => setPermissionError(null)}
+              className="p-1.5 rounded-lg hover:bg-destructive/20 transition-colors"
+            >
+              <X className="w-4 h-4 text-destructive" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Date navigator and status bar */}
       <div className="flex items-center gap-4 mb-6 p-4 rounded-lg glass-card">

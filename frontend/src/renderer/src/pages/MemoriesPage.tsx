@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react'
 import {
-  Search, Brain, Calendar, RefreshCw, X, Clock, Link, Image,
-  Briefcase, DollarSign, HeartPulse, Home, Users, GraduationCap, Gamepad2, Sparkles
+  Search, Brain, Calendar, RefreshCw, X, Clock, Link, Image, Loader2,
+  Briefcase, DollarSign, HeartPulse, Home, Users, GraduationCap, Gamepad2, Sparkles,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight
 } from 'lucide-react'
 import { api, EpisodicMemory, SemanticMemory, Memory, SemanticCategory } from '../services/api'
 
 type TabType = 'episodic' | 'semantic' | 'search'
+
+// Pagination config
+const PAGE_SIZE = 10
 
 // 8 life categories configuration
 const CATEGORY_CONFIG: Record<SemanticCategory, { label: string; icon: React.ReactNode; color: string }> = {
@@ -29,26 +33,80 @@ export default function MemoriesPage(): JSX.Element {
   const [semanticFilter, setSemanticFilter] = useState<'all' | SemanticCategory>('all')
   const [selectedMemory, setSelectedMemory] = useState<EpisodicMemory | null>(null)
 
+  // Total counts from backend
+  const [totalEpisodicCount, setTotalEpisodicCount] = useState(0)
+  const [totalSemanticCount, setTotalSemanticCount] = useState(0)
+
+  // Pagination state
+  const [episodicPage, setEpisodicPage] = useState(1)
+  const [semanticPage, setSemanticPage] = useState(1)
+
+  // Initial load - get stats
   useEffect(() => {
-    loadMemories()
+    loadStats()
   }, [])
 
-  const loadMemories = async (): Promise<void> => {
+  // Load memories when page changes
+  useEffect(() => {
+    loadEpisodicMemories(episodicPage)
+  }, [episodicPage])
+
+  useEffect(() => {
+    loadSemanticMemories(semanticPage)
+  }, [semanticPage])
+
+  const loadStats = async (): Promise<void> => {
+    try {
+      const stats = await api.getMemoryStats()
+      setTotalEpisodicCount(stats.episodic_memories_count)
+      setTotalSemanticCount(stats.semantic_memories_count)
+    } catch (error) {
+      console.error('Failed to load stats:', error)
+    }
+  }
+
+  const loadEpisodicMemories = async (page: number): Promise<void> => {
     setIsLoading(true)
     try {
-      const [episodic, semantic] = await Promise.all([
-        api.getEpisodicMemories(100),
-        api.getSemanticMemories(undefined, 100)
-      ])
-      setEpisodicMemories(episodic.memories)
-      setSemanticMemories(semantic.memories)
+      const offset = (page - 1) * PAGE_SIZE
+      const { memories } = await api.getEpisodicMemories(PAGE_SIZE, offset)
+      setEpisodicMemories(memories)
     } catch (error) {
-      console.error('Failed to load memories:', error)
+      console.error('Failed to load episodic memories:', error)
     } finally {
       setIsLoading(false)
     }
   }
 
+  const loadSemanticMemories = async (page: number): Promise<void> => {
+    setIsLoading(true)
+    try {
+      const offset = (page - 1) * PAGE_SIZE
+      // Note: semantic API might need offset support in backend
+      const { memories } = await api.getSemanticMemories(
+        semanticFilter === 'all' ? undefined : semanticFilter,
+        PAGE_SIZE * page // Load up to current page
+      )
+      // Get only the current page's memories
+      const startIdx = (page - 1) * PAGE_SIZE
+      setSemanticMemories(memories.slice(startIdx, startIdx + PAGE_SIZE))
+    } catch (error) {
+      console.error('Failed to load semantic memories:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleRefresh = async (): Promise<void> => {
+    await loadStats()
+    if (activeTab === 'episodic') {
+      setEpisodicPage(1)
+      await loadEpisodicMemories(1)
+    } else if (activeTab === 'semantic') {
+      setSemanticPage(1)
+      await loadSemanticMemories(1)
+    }
+  }
 
   const handleSearch = async (): Promise<void> => {
     if (!searchQuery.trim()) return
@@ -56,7 +114,7 @@ export default function MemoriesPage(): JSX.Element {
     setIsLoading(true)
     setActiveTab('search')
     try {
-      const { results } = await api.searchMemories(searchQuery, 20)
+      const { results } = await api.searchMemories(searchQuery, 50)
       setSearchResults(results)
     } catch (error) {
       console.error('Search failed:', error)
@@ -71,8 +129,21 @@ export default function MemoriesPage(): JSX.Element {
     }
   }
 
+  const handleSemanticFilterChange = (filter: 'all' | SemanticCategory): void => {
+    setSemanticFilter(filter)
+    setSemanticPage(1)
+  }
+
+  // Reset semantic page when filter changes
+  useEffect(() => {
+    if (activeTab === 'semantic') {
+      loadSemanticMemories(1)
+      setSemanticPage(1)
+    }
+  }, [semanticFilter])
+
   const formatDate = (timestamp: number): string => {
-    return new Date(timestamp).toLocaleDateString('en-US', {
+    return new Date(timestamp).toLocaleDateString('zh-CN', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -86,6 +157,10 @@ export default function MemoriesPage(): JSX.Element {
       ? semanticMemories
       : semanticMemories.filter((m) => m.type === semanticFilter)
 
+  // Calculate total pages
+  const episodicTotalPages = Math.ceil(totalEpisodicCount / PAGE_SIZE)
+  const semanticTotalPages = Math.ceil(totalSemanticCount / PAGE_SIZE)
+
   return (
     <div className="h-full flex flex-col p-6">
       {/* Header */}
@@ -97,7 +172,7 @@ export default function MemoriesPage(): JSX.Element {
           </p>
         </div>
         <button
-          onClick={loadMemories}
+          onClick={handleRefresh}
           disabled={isLoading}
           className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-muted/60 hover:bg-muted transition-all duration-200 disabled:opacity-50 shadow-warm-sm"
         >
@@ -125,13 +200,13 @@ export default function MemoriesPage(): JSX.Element {
           active={activeTab === 'episodic'}
           onClick={() => setActiveTab('episodic')}
           icon={<Calendar className="w-4 h-4" />}
-          label={`Episodic (${episodicMemories.length})`}
+          label={`Episodic (${totalEpisodicCount})`}
         />
         <TabButton
           active={activeTab === 'semantic'}
           onClick={() => setActiveTab('semantic')}
           icon={<Brain className="w-4 h-4" />}
-          label={`Semantic (${semanticMemories.length})`}
+          label={`Semantic (${totalSemanticCount})`}
         />
         {searchResults.length > 0 && (
           <TabButton
@@ -146,48 +221,62 @@ export default function MemoriesPage(): JSX.Element {
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'episodic' && (
-          <div className="grid gap-4">
-            {episodicMemories.length === 0 ? (
-              <EmptyState
-                icon={<Calendar className="w-12 h-12" />}
-                title="No episodic memories yet"
-                description="Your memories from conversations and activities will appear here."
-              />
-            ) : (
-              episodicMemories.map((memory) => (
-                <EpisodicMemoryCard
-                  key={memory.id}
-                  memory={memory}
-                  formatDate={formatDate}
-                  onClick={() => setSelectedMemory(memory)}
+          <div className="flex flex-col h-full">
+            <div className="flex-1 grid gap-4 content-start">
+              {isLoading ? (
+                <LoadingState />
+              ) : episodicMemories.length === 0 ? (
+                <EmptyState
+                  icon={<Calendar className="w-12 h-12" />}
+                  title="No episodic memories yet"
+                  description="Your memories from conversations and activities will appear here."
                 />
-              ))
+              ) : (
+                episodicMemories.map((memory) => (
+                  <EpisodicMemoryCard
+                    key={memory.id}
+                    memory={memory}
+                    formatDate={formatDate}
+                    onClick={() => setSelectedMemory(memory)}
+                  />
+                ))
+              )}
+            </div>
+            {/* Pagination */}
+            {episodicTotalPages > 1 && (
+              <Pagination
+                currentPage={episodicPage}
+                totalPages={episodicTotalPages}
+                onPageChange={setEpisodicPage}
+              />
             )}
           </div>
         )}
 
         {activeTab === 'semantic' && (
-          <>
+          <div className="flex flex-col h-full">
             {/* Semantic filter - 8 life categories */}
             <div className="flex flex-wrap gap-2 mb-4">
               <FilterButton
                 active={semanticFilter === 'all'}
-                onClick={() => setSemanticFilter('all')}
+                onClick={() => handleSemanticFilterChange('all')}
                 label="全部"
               />
               {(Object.keys(CATEGORY_CONFIG) as SemanticCategory[]).map((cat) => (
                 <FilterButton
                   key={cat}
                   active={semanticFilter === cat}
-                  onClick={() => setSemanticFilter(cat)}
+                  onClick={() => handleSemanticFilterChange(cat)}
                   label={CATEGORY_CONFIG[cat].label}
                   icon={CATEGORY_CONFIG[cat].icon}
                 />
               ))}
             </div>
 
-            <div className="grid gap-3">
-              {filteredSemanticMemories.length === 0 ? (
+            <div className="flex-1 grid gap-3 content-start">
+              {isLoading ? (
+                <LoadingState />
+              ) : filteredSemanticMemories.length === 0 ? (
                 <EmptyState
                   icon={<Brain className="w-12 h-12" />}
                   title="No semantic memories yet"
@@ -199,7 +288,15 @@ export default function MemoriesPage(): JSX.Element {
                 ))
               )}
             </div>
-          </>
+            {/* Pagination */}
+            {semanticTotalPages > 1 && (
+              <Pagination
+                currentPage={semanticPage}
+                totalPages={semanticTotalPages}
+                onPageChange={setSemanticPage}
+              />
+            )}
+          </div>
         )}
 
         {activeTab === 'search' && (
@@ -227,6 +324,128 @@ export default function MemoriesPage(): JSX.Element {
           formatDate={formatDate}
         />
       )}
+    </div>
+  )
+}
+
+function Pagination({
+  currentPage,
+  totalPages,
+  onPageChange
+}: {
+  currentPage: number
+  totalPages: number
+  onPageChange: (page: number) => void
+}): JSX.Element {
+  const getVisiblePages = (): (number | string)[] => {
+    const pages: (number | string)[] = []
+    const maxVisible = 5
+
+    if (totalPages <= maxVisible + 2) {
+      // Show all pages if total is small
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i)
+      }
+    } else {
+      // Always show first page
+      pages.push(1)
+
+      if (currentPage > 3) {
+        pages.push('...')
+      }
+
+      // Show pages around current
+      const start = Math.max(2, currentPage - 1)
+      const end = Math.min(totalPages - 1, currentPage + 1)
+
+      for (let i = start; i <= end; i++) {
+        if (!pages.includes(i)) {
+          pages.push(i)
+        }
+      }
+
+      if (currentPage < totalPages - 2) {
+        pages.push('...')
+      }
+
+      // Always show last page
+      if (!pages.includes(totalPages)) {
+        pages.push(totalPages)
+      }
+    }
+
+    return pages
+  }
+
+  return (
+    <div className="flex items-center justify-center gap-1 py-4 mt-4 border-t border-border/50">
+      {/* First page */}
+      <button
+        onClick={() => onPageChange(1)}
+        disabled={currentPage === 1}
+        className="p-2 rounded-lg hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        title="First page"
+      >
+        <ChevronsLeft className="w-4 h-4" />
+      </button>
+
+      {/* Previous page */}
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className="p-2 rounded-lg hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        title="Previous page"
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+
+      {/* Page numbers */}
+      <div className="flex items-center gap-1 mx-2">
+        {getVisiblePages().map((page, idx) =>
+          typeof page === 'number' ? (
+            <button
+              key={idx}
+              onClick={() => onPageChange(page)}
+              className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all ${
+                currentPage === page
+                  ? 'bg-primary text-primary-foreground shadow-warm-sm'
+                  : 'hover:bg-muted/60'
+              }`}
+            >
+              {page}
+            </button>
+          ) : (
+            <span key={idx} className="px-2 text-muted-foreground">
+              {page}
+            </span>
+          )
+        )}
+      </div>
+
+      {/* Next page */}
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className="p-2 rounded-lg hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        title="Next page"
+      >
+        <ChevronRight className="w-4 h-4" />
+      </button>
+
+      {/* Last page */}
+      <button
+        onClick={() => onPageChange(totalPages)}
+        disabled={currentPage === totalPages}
+        className="p-2 rounded-lg hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        title="Last page"
+      >
+        <ChevronsRight className="w-4 h-4" />
+      </button>
+
+      {/* Page info */}
+      <span className="ml-4 text-sm text-muted-foreground">
+        Page {currentPage} of {totalPages}
+      </span>
     </div>
   )
 }
@@ -280,6 +499,15 @@ function FilterButton({
       {icon}
       {label}
     </button>
+  )
+}
+
+function LoadingState(): JSX.Element {
+  return (
+    <div className="flex flex-col items-center justify-center py-16">
+      <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+      <p className="text-sm text-muted-foreground">Loading memories...</p>
+    </div>
   )
 }
 

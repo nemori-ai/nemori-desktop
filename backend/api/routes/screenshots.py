@@ -20,6 +20,12 @@ class SelectMonitorRequest(BaseModel):
     monitor_id: int
 
 
+class UploadScreenshotRequest(BaseModel):
+    """Request model for uploading screenshot from Electron frontend"""
+    image_data: str  # Base64 encoded PNG image
+    monitor_id: Optional[str] = None
+
+
 @router.get("/")
 async def get_screenshots(limit: int = 100, offset: int = 0):
     """Get screenshots list"""
@@ -121,12 +127,28 @@ async def stop_capture():
 
 @router.post("/capture-now")
 async def capture_now():
-    """Capture a screenshot immediately"""
+    """Capture a screenshot immediately (deprecated - use /upload instead)"""
     service = ScreenshotService.get_instance()
     screenshot = await service.capture_now()
     if screenshot:
         return {"success": True, "screenshot": screenshot}
     return {"success": False, "message": "Capture failed or duplicate"}
+
+
+@router.post("/upload")
+async def upload_screenshot(request: UploadScreenshotRequest):
+    """
+    Upload a screenshot captured by Electron frontend.
+    This endpoint receives base64-encoded image data and saves it.
+    """
+    service = ScreenshotService.get_instance()
+    screenshot = await service.save_uploaded_screenshot(
+        image_data=request.image_data,
+        monitor_id=request.monitor_id
+    )
+    if screenshot:
+        return {"success": True, "screenshot": screenshot}
+    return {"success": False, "message": "Failed to save screenshot or duplicate"}
 
 
 @router.get("/{screenshot_id}")

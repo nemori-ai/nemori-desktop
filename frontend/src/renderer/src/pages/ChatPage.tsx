@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Send, Plus, Trash2, Loader2, Bot, MessageCircle, ChevronDown, ChevronRight, Sparkles, Search, Clock } from 'lucide-react'
+import { Send, Plus, Trash2, Loader2, Bot, MessageCircle, ChevronDown, ChevronRight, Sparkles, Search, Clock, ArrowUp } from 'lucide-react'
 import MarkdownIt from 'markdown-it'
 import { api, Message, Conversation, AgentStreamEvent, AgentToolCall } from '../services/api'
+
+// Pagination config for messages
+const MESSAGES_PAGE_SIZE = 50
 
 // Initialize markdown parser - same approach as MineContext
 const md = new MarkdownIt({
@@ -258,12 +261,18 @@ export default function ChatPage(): JSX.Element {
   const [thinkingStep, setThinkingStep] = useState(0)
   const [currentToolCalls, setCurrentToolCalls] = useState<AgentToolCall[]>([])
 
+  // Pagination state for messages
+  const [hasMoreMessages, setHasMoreMessages] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [messagesOffset, setMessagesOffset] = useState(0)
+
   // Refs to track latest values (to avoid stale closures)
   const streamingContentRef = useRef('')
   const toolCallsRef = useRef<AgentToolCall[]>([])
   const currentConversationRef = useRef<string | null>(conversationId || null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   // Load conversations
@@ -296,7 +305,8 @@ export default function ChatPage(): JSX.Element {
 
   const loadMessages = async (convId: string): Promise<void> => {
     try {
-      const { messages } = await api.getMessages(convId)
+      // Load recent messages with pagination
+      const { messages } = await api.getMessages(convId, MESSAGES_PAGE_SIZE)
       console.log('[loadMessages] Loaded messages:', messages.length)
 
       // For agent messages, fetch their tool calls
@@ -324,15 +334,91 @@ export default function ChatPage(): JSX.Element {
       )
 
       setMessages(messagesWithToolCalls)
+      setMessagesOffset(MESSAGES_PAGE_SIZE)
+      setHasMoreMessages(messages.length === MESSAGES_PAGE_SIZE)
     } catch (error) {
       console.error('Failed to load messages:', error)
     }
   }
 
+  const loadMoreMessages = useCallback(async (): Promise<void> => {
+    if (!currentConversation || isLoadingMore || !hasMoreMessages) return
+
+    setIsLoadingMore(true)
+    const container = messagesContainerRef.current
+    const previousScrollHeight = container?.scrollHeight || 0
+
+    try {
+      // Load older messages (higher offset = older messages)
+      const { messages: olderMessages } = await api.getMessages(
+        currentConversation,
+        MESSAGES_PAGE_SIZE
+        // Note: The backend returns newest first, so we need to handle this differently
+        // For now, we'll load all and slice - backend could be improved to support offset
+      )
+
+      // Get messages beyond what we already have
+      if (olderMessages.length > messagesOffset) {
+        const newMessages = olderMessages.slice(messagesOffset)
+
+        // For agent messages, fetch their tool calls
+        const messagesWithToolCalls = await Promise.all(
+          newMessages.map(async (msg) => {
+            if (msg.metadata?.is_agent && msg.metadata?.session_id) {
+              try {
+                const sessionDetails = await api.getAgentSessionDetails(msg.metadata.session_id)
+                return {
+                  ...msg,
+                  metadata: {
+                    ...msg.metadata,
+                    tool_calls: sessionDetails.tool_calls || []
+                  }
+                }
+              } catch {
+                return msg
+              }
+            }
+            return msg
+          })
+        )
+
+        // Prepend older messages to the beginning
+        setMessages(prev => [...messagesWithToolCalls, ...prev])
+        setMessagesOffset(prev => prev + newMessages.length)
+        setHasMoreMessages(newMessages.length === MESSAGES_PAGE_SIZE)
+
+        // Preserve scroll position after adding older messages
+        requestAnimationFrame(() => {
+          if (container) {
+            const newScrollHeight = container.scrollHeight
+            container.scrollTop = newScrollHeight - previousScrollHeight
+          }
+        })
+      } else {
+        setHasMoreMessages(false)
+      }
+    } catch (error) {
+      console.error('Failed to load more messages:', error)
+    } finally {
+      setIsLoadingMore(false)
+    }
+  }, [currentConversation, isLoadingMore, hasMoreMessages, messagesOffset])
+
+  // Handle scroll to top for loading more messages
+  const handleMessagesScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const container = e.currentTarget
+    // If scrolled near top (within 100px), load more messages
+    if (container.scrollTop < 100 && hasMoreMessages && !isLoadingMore) {
+      loadMoreMessages()
+    }
+  }, [hasMoreMessages, isLoadingMore, loadMoreMessages])
+
   const handleNewConversation = (): void => {
     currentConversationRef.current = null
     setCurrentConversation(null)
     setMessages([])
+    setMessagesOffset(0)
+    setHasMoreMessages(false)
     navigate('/chat')
   }
 
@@ -656,7 +742,31 @@ export default function ChatPage(): JSX.Element {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div
+          ref={messagesContainerRef}
+          onScroll={handleMessagesScroll}
+          className="flex-1 overflow-y-auto p-6 space-y-6"
+        >
+          {/* Load more indicator */}
+          {hasMoreMessages && (
+            <div className="flex items-center justify-center py-2">
+              {isLoadingMore ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Loading older messages...</span>
+                </div>
+              ) : (
+                <button
+                  onClick={loadMoreMessages}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-muted/60 transition-all duration-200"
+                >
+                  <ArrowUp className="w-4 h-4" />
+                  <span>Load older messages</span>
+                </button>
+              )}
+            </div>
+          )}
+
           {messages.length === 0 && !isStreaming ? (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
               {isAgentMode ? (

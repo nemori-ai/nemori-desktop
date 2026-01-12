@@ -29,6 +29,41 @@ const api = {
     restart: () => ipcRenderer.invoke('backend:restart')
   },
 
+  // Screenshot service (captures from Electron main process)
+  screenshot: {
+    checkPermission: () =>
+      ipcRenderer.invoke('screenshot:checkPermission') as Promise<{
+        granted: boolean
+        canRequest: boolean
+      }>,
+    getMonitors: () =>
+      ipcRenderer.invoke('screenshot:getMonitors') as Promise<
+        Array<{ id: string; name: string; width: number; height: number; x: number; y: number }>
+      >,
+    getPreview: (monitorId: string) =>
+      ipcRenderer.invoke('screenshot:getPreview', monitorId) as Promise<string | null>,
+    setMonitor: (monitorId: string) =>
+      ipcRenderer.invoke('screenshot:setMonitor', monitorId) as Promise<boolean>,
+    getSelectedMonitor: () =>
+      ipcRenderer.invoke('screenshot:getSelectedMonitor') as Promise<string | null>,
+    capture: () =>
+      ipcRenderer.invoke('screenshot:capture') as Promise<{
+        success: boolean
+        imageData?: string
+        monitorId?: string
+        error?: string
+      }>,
+    openPermissionSettings: () => ipcRenderer.invoke('screenshot:openPermissionSettings'),
+    startCapture: (intervalMs?: number) =>
+      ipcRenderer.invoke('screenshot:startCapture', intervalMs) as Promise<boolean>,
+    stopCapture: () => ipcRenderer.invoke('screenshot:stopCapture') as Promise<boolean>,
+    getCaptureStatus: () =>
+      ipcRenderer.invoke('screenshot:getCaptureStatus') as Promise<{
+        isCapturing: boolean
+        intervalMs: number
+      }>
+  },
+
   // Event listeners
   on: (channel: string, callback: (...args: any[]) => void) => {
     const validChannels = ['navigate', 'screenshot-captured', 'backend-status']

@@ -156,7 +156,7 @@ class ScreenshotService:
             await asyncio.sleep(self._interval_ms / 1000)
 
     async def capture_now(self) -> Optional[Dict[str, Any]]:
-        """Capture a screenshot immediately"""
+        """Capture a screenshot immediately (using mss - for backward compatibility)"""
         try:
             with mss.mss() as sct:
                 # Capture the selected monitor
@@ -218,6 +218,79 @@ class ScreenshotService:
 
         except Exception as e:
             print(f"Screenshot capture failed: {e}")
+            return None
+
+    async def save_uploaded_screenshot(
+        self,
+        image_data: str,
+        monitor_id: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Save a screenshot uploaded from Electron frontend.
+
+        Args:
+            image_data: Base64-encoded PNG image data
+            monitor_id: Optional monitor ID for tracking
+
+        Returns:
+            Screenshot metadata dict or None if duplicate/failed
+        """
+        try:
+            # Decode base64 image
+            image_bytes = base64.b64decode(image_data)
+            img = Image.open(BytesIO(image_bytes))
+
+            # Convert to RGB if necessary (e.g., RGBA)
+            if img.mode != "RGB":
+                img = img.convert("RGB")
+
+            # Calculate perceptual hash for deduplication
+            phash = str(imagehash.phash(img))
+
+            # Check for duplicate
+            if self._last_phash and self._is_similar(phash, self._last_phash):
+                print("Skipping duplicate screenshot (uploaded)")
+                return None
+
+            # Generate unique ID and timestamp
+            screenshot_id = str(uuid.uuid4())
+            timestamp = int(datetime.now().timestamp() * 1000)
+
+            # Save image to file
+            file_name = f"{screenshot_id}.png"
+            file_path = self._screenshots_path / file_name
+
+            # Resize for storage (optional - reduce size)
+            max_size = (1920, 1080)
+            img.thumbnail(max_size, Image.Resampling.LANCZOS)
+            img.save(file_path, "PNG", optimize=True)
+
+            # Save to database
+            db = Database.get_instance()
+            screenshot_data = {
+                "id": screenshot_id,
+                "timestamp": timestamp,
+                "file_path": str(file_path),
+                "phash": phash,
+                "processed": False,
+                "monitor_id": monitor_id
+            }
+
+            await db.save_screenshot(screenshot_data)
+            self._last_phash = phash
+
+            # Notify memory manager for batch processing
+            try:
+                from memory import MemoryOrchestrator
+                memory_manager = MemoryOrchestrator.get_instance()
+                await memory_manager.on_screenshot_captured(screenshot_data)
+            except Exception as e:
+                print(f"Failed to notify memory manager: {e}")
+
+            return screenshot_data
+
+        except Exception as e:
+            print(f"Failed to save uploaded screenshot: {e}")
             return None
 
     def _is_similar(self, hash1: str, hash2: str, threshold: int = 5) -> bool:
@@ -313,13 +386,14 @@ class ScreenshotService:
         return deleted_count
 
     def get_status(self) -> Dict[str, Any]:
-        """Get capture status"""
+        """Get capture status (monitors are now provided by Electron frontend)"""
         return {
             "is_capturing": self._is_capturing,
             "interval_ms": self._interval_ms,
             "screenshots_path": str(self._screenshots_path),
             "selected_monitor": self._selected_monitor,
-            "monitors": self.get_available_monitors()
+            # Note: monitors list is now obtained from Electron to avoid mss permission issues
+            "monitors": []
         }
 
     async def get_screenshots_since(

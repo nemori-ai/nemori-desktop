@@ -22,11 +22,51 @@ interface BackendAPI {
   restart: () => Promise<boolean>
 }
 
+interface ScreenshotPermission {
+  granted: boolean
+  canRequest: boolean
+}
+
+interface MonitorInfo {
+  id: string
+  name: string
+  width: number
+  height: number
+  x: number
+  y: number
+}
+
+interface CaptureResult {
+  success: boolean
+  imageData?: string
+  monitorId?: string
+  error?: string
+}
+
+interface ElectronCaptureStatus {
+  isCapturing: boolean
+  intervalMs: number
+}
+
+interface ScreenshotAPI {
+  checkPermission: () => Promise<ScreenshotPermission>
+  getMonitors: () => Promise<MonitorInfo[]>
+  getPreview: (monitorId: string) => Promise<string | null>
+  setMonitor: (monitorId: string) => Promise<boolean>
+  getSelectedMonitor: () => Promise<string | null>
+  capture: () => Promise<CaptureResult>
+  openPermissionSettings: () => Promise<boolean>
+  startCapture: (intervalMs?: number) => Promise<boolean>
+  stopCapture: () => Promise<boolean>
+  getCaptureStatus: () => Promise<ElectronCaptureStatus>
+}
+
 interface CustomAPI {
   window: WindowAPI
   shell: ShellAPI
   app: AppAPI
   backend: BackendAPI
+  screenshot: ScreenshotAPI
   on: (channel: string, callback: (...args: any[]) => void) => void
   off: (channel: string, callback: (...args: any[]) => void) => void
 }
