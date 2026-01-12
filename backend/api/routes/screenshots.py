@@ -43,11 +43,12 @@ async def get_screenshot_dates():
 
 
 @router.get("/by-date/{date_str}")
-async def get_screenshots_by_date(date_str: str, limit: int = 500):
-    """Get screenshots for a specific date (YYYY-MM-DD format)"""
+async def get_screenshots_by_date(date_str: str, limit: int = 500, offset: int = 0):
+    """Get screenshots for a specific date (YYYY-MM-DD format) with pagination"""
     service = ScreenshotService.get_instance()
-    screenshots = await service.get_screenshots_by_date(date_str, limit)
-    return {"screenshots": screenshots, "date": date_str}
+    screenshots = await service.get_screenshots_by_date(date_str, limit, offset)
+    total = await service.get_screenshot_count_by_date(date_str)
+    return {"screenshots": screenshots, "date": date_str, "total": total}
 
 
 @router.get("/since/{since_timestamp}")

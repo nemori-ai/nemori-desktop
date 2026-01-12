@@ -259,9 +259,10 @@ class ApiService {
 
   async getScreenshotsByDate(
     dateStr: string,
-    limit: number = 500
-  ): Promise<{ screenshots: Screenshot[]; date: string }> {
-    return this.request(`/screenshots/by-date/${dateStr}?limit=${limit}`)
+    limit: number = 500,
+    offset: number = 0
+  ): Promise<{ screenshots: Screenshot[]; date: string; total: number }> {
+    return this.request(`/screenshots/by-date/${dateStr}?limit=${limit}&offset=${offset}`)
   }
 
   async getScreenshotsSince(
@@ -368,6 +369,10 @@ class ApiService {
   }
 
   async getScreenshotImage(id: string): Promise<Blob> {
+    // Ensure API is initialized before making requests
+    if (!isInitialized) {
+      await initializeApi()
+    }
     const response = await fetch(`${this.baseUrl}/api/screenshots/${id}/image`)
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
@@ -376,7 +381,11 @@ class ApiService {
   }
 
   // Get screenshot image URL for direct use in <img src>
-  getScreenshotImageUrl(id: string): string {
+  // Note: This is async now to ensure API is initialized
+  async getScreenshotImageUrl(id: string): Promise<string> {
+    if (!isInitialized) {
+      await initializeApi()
+    }
     return `${this.baseUrl}/api/screenshots/${id}/image`
   }
 

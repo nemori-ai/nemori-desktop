@@ -244,9 +244,9 @@ export class ScreenshotService {
 
     this.isCapturing = true
 
-    // Capture immediately on start
+    // Capture immediately on start (non-blocking)
     console.log('Capturing first screenshot immediately...')
-    await this.captureAndUpload()
+    this.captureAndUpload().catch((err) => console.error('First capture failed:', err))
 
     // Then set up interval for subsequent captures
     this.captureInterval = setInterval(async () => {

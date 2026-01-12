@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
-import { Camera, CameraOff, Trash2, RefreshCw, X, Monitor, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
+import { Camera, CameraOff, Trash2, RefreshCw, X, Monitor, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Calendar } from 'lucide-react'
 import { api, Screenshot, CaptureStatus } from '../services/api'
 import { formatDateDisplay, getTodayDateStr } from '../utils/file'
 
 // Cache for blob URLs to avoid re-fetching
 const blobUrlCache = new Map<string, string>()
+
+// Pagination config
+const PAGE_SIZE = 20
 
 export default function ScreenshotsPage(): JSX.Element {
   const [screenshots, setScreenshots] = useState<Screenshot[]>([])
@@ -21,6 +24,10 @@ export default function ScreenshotsPage(): JSX.Element {
   const [selectedDate, setSelectedDate] = useState<string>('')
   const loadingDateRef = useRef<string>('')
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+
   // Load available dates on mount and determine initial date
   useEffect(() => {
     const initializeData = async (): Promise<void> => {
@@ -36,14 +43,16 @@ export default function ScreenshotsPage(): JSX.Element {
         // Set the ref BEFORE setting state to prevent the second useEffect from triggering a duplicate load
         loadingDateRef.current = dateToLoad
         setSelectedDate(dateToLoad)
-        await loadScreenshotsByDateSafe(dateToLoad)
+        setCurrentPage(1)
+        await loadScreenshotsPage(dateToLoad, 1)
       } catch (error) {
         console.error('Failed to initialize:', error)
         // Fallback to today
         const today = getTodayDateStr()
         loadingDateRef.current = today
         setSelectedDate(today)
-        await loadScreenshotsByDateSafe(today)
+        setCurrentPage(1)
+        await loadScreenshotsPage(today, 1)
       }
     }
 
@@ -57,8 +66,16 @@ export default function ScreenshotsPage(): JSX.Element {
     if (!selectedDate || loadingDateRef.current === selectedDate) {
       return
     }
-    loadScreenshotsByDateSafe(selectedDate)
+    setCurrentPage(1)
+    loadScreenshotsPage(selectedDate, 1)
   }, [selectedDate])
+
+  // Load screenshots when page changes
+  useEffect(() => {
+    if (selectedDate && loadingDateRef.current === selectedDate) {
+      loadScreenshotsPage(selectedDate, currentPage)
+    }
+  }, [currentPage])
 
   const loadAvailableDates = async (): Promise<void> => {
     try {
@@ -78,24 +95,27 @@ export default function ScreenshotsPage(): JSX.Element {
     }
   }
 
-  // Safe screenshot loading that prevents race conditions
-  const loadScreenshotsByDateSafe = async (date: string): Promise<void> => {
+  // Load screenshots with pagination
+  const loadScreenshotsPage = async (date: string, page: number): Promise<void> => {
     // Track which date we're loading
     loadingDateRef.current = date
     setIsLoading(true)
 
     try {
-      const { screenshots: data } = await api.getScreenshotsByDate(date)
+      const offset = (page - 1) * PAGE_SIZE
+      const { screenshots: data, total } = await api.getScreenshotsByDate(date, PAGE_SIZE, offset)
 
       // Only update state if this is still the date we want
       if (loadingDateRef.current === date) {
         setScreenshots(data)
+        setTotalCount(total)
       }
     } catch (error) {
       console.error('Failed to load screenshots:', error)
       // Only clear if this is still the date we want
       if (loadingDateRef.current === date) {
         setScreenshots([])
+        setTotalCount(0)
       }
     } finally {
       // Only clear loading if this is still the date we want
@@ -108,7 +128,7 @@ export default function ScreenshotsPage(): JSX.Element {
   const handleRefresh = async (): Promise<void> => {
     await Promise.all([
       loadAvailableDates(),
-      loadScreenshotsByDateSafe(selectedDate),
+      loadScreenshotsPage(selectedDate, currentPage),
       loadCaptureStatus()
     ])
   }
@@ -131,9 +151,13 @@ export default function ScreenshotsPage(): JSX.Element {
     try {
       const result = await api.captureNow()
       if (result.success && result.screenshot) {
-        // If viewing today, add the new screenshot
-        if (selectedDate === getTodayDateStr()) {
-          setScreenshots((prev) => [result.screenshot!, ...prev])
+        // If viewing today and on first page, add the new screenshot
+        if (selectedDate === getTodayDateStr() && currentPage === 1) {
+          setScreenshots((prev) => [result.screenshot!, ...prev.slice(0, PAGE_SIZE - 1)])
+          setTotalCount((prev) => prev + 1)
+        } else if (selectedDate === getTodayDateStr()) {
+          // Just update total count if not on first page
+          setTotalCount((prev) => prev + 1)
         }
         // Refresh dates in case this is the first screenshot of the day
         loadAvailableDates()
@@ -154,6 +178,7 @@ export default function ScreenshotsPage(): JSX.Element {
     try {
       await api.deleteScreenshot(id)
       setScreenshots((prev) => prev.filter((s) => s.id !== id))
+      setTotalCount((prev) => Math.max(0, prev - 1))
       if (selectedScreenshot?.id === id) {
         setSelectedScreenshot(null)
       }
@@ -216,6 +241,7 @@ export default function ScreenshotsPage(): JSX.Element {
   const currentDateIndex = availableDates.indexOf(selectedDate)
   const hasPrevDate = currentDateIndex < availableDates.length - 1
   const hasNextDate = currentDateIndex > 0
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
   return (
     <div className="h-full flex flex-col p-6">
@@ -336,7 +362,7 @@ export default function ScreenshotsPage(): JSX.Element {
               </span>
             </div>
             <span className="text-sm text-muted-foreground">
-              {screenshots.length} screenshots
+              {totalCount} screenshots
             </span>
 
             {/* Monitor selector */}
@@ -357,29 +383,40 @@ export default function ScreenshotsPage(): JSX.Element {
       </div>
 
       {/* Screenshots grid */}
-      <div className="flex-1 overflow-y-auto">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-full">
-            <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : screenshots.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-            <Camera className="w-16 h-16 mb-4 opacity-50" />
-            <h2 className="text-xl font-semibold mb-2">No screenshots</h2>
-            <p className="text-sm">No screenshots for {formatDateDisplay(selectedDate)}</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {screenshots.map((screenshot) => (
-              <ScreenshotCard
-                key={screenshot.id}
-                screenshot={screenshot}
-                onClick={() => setSelectedScreenshot(screenshot)}
-                onDelete={() => handleDelete(screenshot.id)}
-                formatTime={formatTime}
-              />
-            ))}
-          </div>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-full">
+              <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : screenshots.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+              <Camera className="w-16 h-16 mb-4 opacity-50" />
+              <h2 className="text-xl font-semibold mb-2">No screenshots</h2>
+              <p className="text-sm">No screenshots for {formatDateDisplay(selectedDate)}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {screenshots.map((screenshot) => (
+                <ScreenshotCard
+                  key={screenshot.id}
+                  screenshot={screenshot}
+                  onClick={() => setSelectedScreenshot(screenshot)}
+                  onDelete={() => handleDelete(screenshot.id)}
+                  formatTime={formatTime}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         )}
       </div>
 
@@ -584,6 +621,119 @@ function ImageViewerModal({
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+// Pagination component
+function Pagination({
+  currentPage,
+  totalPages,
+  onPageChange
+}: {
+  currentPage: number
+  totalPages: number
+  onPageChange: (page: number) => void
+}): JSX.Element {
+  const getVisiblePages = (): (number | string)[] => {
+    const pages: (number | string)[] = []
+    const maxVisible = 5
+
+    if (totalPages <= maxVisible + 2) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i)
+      }
+    } else {
+      pages.push(1)
+
+      if (currentPage > 3) {
+        pages.push('...')
+      }
+
+      const start = Math.max(2, currentPage - 1)
+      const end = Math.min(totalPages - 1, currentPage + 1)
+
+      for (let i = start; i <= end; i++) {
+        if (!pages.includes(i)) {
+          pages.push(i)
+        }
+      }
+
+      if (currentPage < totalPages - 2) {
+        pages.push('...')
+      }
+
+      if (!pages.includes(totalPages)) {
+        pages.push(totalPages)
+      }
+    }
+
+    return pages
+  }
+
+  return (
+    <div className="flex items-center justify-center gap-1 py-4 mt-4 border-t border-border/50">
+      <button
+        onClick={() => onPageChange(1)}
+        disabled={currentPage === 1}
+        className="p-2 rounded-lg hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        title="First page"
+      >
+        <ChevronsLeft className="w-4 h-4" />
+      </button>
+
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className="p-2 rounded-lg hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        title="Previous page"
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+
+      <div className="flex items-center gap-1 mx-2">
+        {getVisiblePages().map((page, idx) =>
+          typeof page === 'number' ? (
+            <button
+              key={idx}
+              onClick={() => onPageChange(page)}
+              className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-all ${
+                currentPage === page
+                  ? 'bg-primary text-primary-foreground shadow-warm-sm'
+                  : 'hover:bg-muted/60'
+              }`}
+            >
+              {page}
+            </button>
+          ) : (
+            <span key={idx} className="px-2 text-muted-foreground">
+              {page}
+            </span>
+          )
+        )}
+      </div>
+
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className="p-2 rounded-lg hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        title="Next page"
+      >
+        <ChevronRight className="w-4 h-4" />
+      </button>
+
+      <button
+        onClick={() => onPageChange(totalPages)}
+        disabled={currentPage === totalPages}
+        className="p-2 rounded-lg hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        title="Last page"
+      >
+        <ChevronsRight className="w-4 h-4" />
+      </button>
+
+      <span className="ml-4 text-sm text-muted-foreground">
+        Page {currentPage} of {totalPages}
+      </span>
     </div>
   )
 }

@@ -315,11 +315,17 @@ class ScreenshotService:
     async def get_screenshots_by_date(
         self,
         date_str: str,
-        limit: int = 500
+        limit: int = 500,
+        offset: int = 0
     ) -> List[Dict[str, Any]]:
-        """Get screenshots for a specific date"""
+        """Get screenshots for a specific date with pagination"""
         db = Database.get_instance()
-        return await db.get_screenshots_by_date(date_str, limit)
+        return await db.get_screenshots_by_date(date_str, limit, offset)
+
+    async def get_screenshot_count_by_date(self, date_str: str) -> int:
+        """Get total count of screenshots for a specific date"""
+        db = Database.get_instance()
+        return await db.get_screenshot_count_by_date(date_str)
 
     async def get_screenshot_dates(self) -> List[str]:
         """Get list of dates that have screenshots"""

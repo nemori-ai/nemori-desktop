@@ -342,9 +342,9 @@ class Database:
             await self._connection.commit()
 
     async def get_screenshots_by_date(
-        self, date_str: str, limit: int = 500
+        self, date_str: str, limit: int = 500, offset: int = 0
     ) -> List[Dict[str, Any]]:
-        """Get screenshots for a specific date (YYYY-MM-DD format)"""
+        """Get screenshots for a specific date (YYYY-MM-DD format) with pagination"""
         # Convert date string to timestamp range (start and end of day in milliseconds)
         from datetime import datetime
         date = datetime.strptime(date_str, "%Y-%m-%d")
@@ -354,11 +354,26 @@ class Database:
         cursor = await self._connection.execute(
             """SELECT * FROM screenshots
                WHERE timestamp >= ? AND timestamp < ?
-               ORDER BY timestamp DESC LIMIT ?""",
-            (start_ts, end_ts, limit),
+               ORDER BY timestamp DESC LIMIT ? OFFSET ?""",
+            (start_ts, end_ts, limit, offset),
         )
         rows = await cursor.fetchall()
         return [dict(row) for row in rows]
+
+    async def get_screenshot_count_by_date(self, date_str: str) -> int:
+        """Get total count of screenshots for a specific date"""
+        from datetime import datetime
+        date = datetime.strptime(date_str, "%Y-%m-%d")
+        start_ts = int(date.timestamp() * 1000)
+        end_ts = start_ts + 24 * 60 * 60 * 1000
+
+        cursor = await self._connection.execute(
+            """SELECT COUNT(*) as count FROM screenshots
+               WHERE timestamp >= ? AND timestamp < ?""",
+            (start_ts, end_ts),
+        )
+        row = await cursor.fetchone()
+        return row["count"] if row else 0
 
     async def get_screenshot_dates(self) -> List[str]:
         """Get list of dates that have screenshots (YYYY-MM-DD format)"""
