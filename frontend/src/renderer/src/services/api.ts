@@ -2,16 +2,33 @@
  * API Service for communicating with Python backend
  */
 
-let BASE_URL = 'http://127.0.0.1:21978'
+// BASE_URL starts empty - must be initialized via initializeApi()
+let BASE_URL = ''
 let isInitialized = false
+let initializationPromise: Promise<void> | null = null
 
 // Initialize API base URL from Electron main process
 export async function initializeApi(): Promise<void> {
-  if (window.api?.backend?.getUrl && !isInitialized) {
-    BASE_URL = await window.api.backend.getUrl()
-    isInitialized = true
-    console.log('[API] Initialized with URL:', BASE_URL)
+  // Return existing promise if already initializing
+  if (initializationPromise) {
+    return initializationPromise
   }
+
+  if (isInitialized) {
+    return
+  }
+
+  initializationPromise = (async () => {
+    if (window.api?.backend?.getUrl) {
+      BASE_URL = await window.api.backend.getUrl()
+      isInitialized = true
+      console.log('[API] Initialized with URL:', BASE_URL)
+    } else {
+      throw new Error('Backend API not available - running outside Electron?')
+    }
+  })()
+
+  return initializationPromise
 }
 
 class ApiService {
@@ -81,6 +98,10 @@ class ApiService {
     useMemory: boolean = true,
     onChunk: (chunk: string) => void = () => {}
   ): Promise<{ content: string; conversationId: string }> {
+    // Ensure API is initialized before making requests
+    if (!isInitialized) {
+      await initializeApi()
+    }
     const url = `${this.baseUrl}/api/chat/stream`
 
     const response = await fetch(url, {
@@ -465,7 +486,10 @@ class ApiService {
       throw new Error('Monitor not found')
     }
 
-    // Fallback to backend
+    // Fallback to backend - ensure API is initialized
+    if (!isInitialized) {
+      await initializeApi()
+    }
     const response = await fetch(`${this.baseUrl}/api/screenshots/monitors/${monitorId}/preview`)
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
@@ -613,6 +637,10 @@ class ApiService {
     maxSteps: number = 10,
     onEvent: (event: AgentStreamEvent) => void = () => {}
   ): Promise<{ conversationId: string; sessionId: string }> {
+    // Ensure API is initialized before making requests
+    if (!isInitialized) {
+      await initializeApi()
+    }
     const url = `${this.baseUrl}/api/agent/chat`
 
     const response = await fetch(url, {
@@ -702,6 +730,10 @@ class ApiService {
     database: string
     llm_configured: boolean
   }> {
+    // Ensure API is initialized before making requests
+    if (!isInitialized) {
+      await initializeApi()
+    }
     const response = await fetch(`${this.baseUrl}/health`)
     return response.json()
   }

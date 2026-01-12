@@ -9,16 +9,18 @@ import { getRandomPort } from 'get-port-please'
 export class BackendService {
   private process: ChildProcess | null = null
   private host: string = '127.0.0.1'
-  private port: number = 21978
+  private port: number = 0  // Will be set dynamically
   private isStarted: boolean = false
   private isDev: boolean = process.env.NODE_ENV === 'development' || !app.isPackaged
 
-  constructor(host?: string, port?: number) {
+  constructor(host?: string) {
     if (host) this.host = host
-    if (port) this.port = port
   }
 
   getUrl(): string {
+    if (this.port === 0) {
+      throw new Error('Backend service not started yet - port not assigned')
+    }
     return `http://${this.host}:${this.port}`
   }
 
@@ -33,15 +35,8 @@ export class BackendService {
     }
 
     try {
-      // Check if backend is already running (maybe from another instance)
-      const alreadyRunning = await this.checkHealth()
-      if (alreadyRunning) {
-        console.log('Backend already running on', this.getUrl())
-        this.isStarted = true
-        return true
-      }
-
       // In production, use bundled executable; in development, use Python
+      // Always get a random port first to avoid conflicts
       if (this.isDev) {
         return await this.startDevelopment()
       } else {
@@ -68,8 +63,11 @@ export class BackendService {
       return false
     }
 
+    // Use random port in development too for consistency with production
+    this.port = await getRandomPort(this.host)
     console.log('[Dev] Starting backend with Python:', pythonPath)
     console.log('[Dev] Backend path:', backendPath)
+    console.log('[Dev] Using port:', this.port)
 
     // Start the backend process
     this.process = spawn(

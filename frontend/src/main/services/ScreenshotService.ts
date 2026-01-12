@@ -26,11 +26,11 @@ export class ScreenshotService {
 
   /**
    * Create a ScreenshotService with a dynamic backend URL getter
-   * @param getBackendUrl - Function that returns the current backend URL
+   * @param getBackendUrl - Function that returns the current backend URL (required)
    */
-  constructor(getBackendUrl?: () => string) {
-    // Default to development port, but should be overridden with dynamic getter
-    this.getBackendUrl = getBackendUrl || (() => 'http://127.0.0.1:21978')
+  constructor(getBackendUrl: () => string) {
+    // Dynamic getter is required to ensure correct port is used
+    this.getBackendUrl = getBackendUrl
   }
 
   /**

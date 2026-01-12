@@ -159,7 +159,10 @@ function setupIpcHandlers(): void {
 
   // Backend service
   ipcMain.handle('backend:getUrl', () => {
-    return backendService?.getUrl() || 'http://127.0.0.1:21978'
+    if (!backendService) {
+      throw new Error('Backend service not initialized')
+    }
+    return backendService.getUrl()
   })
 
   ipcMain.handle('backend:isRunning', () => {
@@ -242,7 +245,12 @@ app.whenReady().then(async () => {
 
   // Initialize screenshot service with dynamic URL getter
   // This ensures ScreenshotService always uses the current backend port
-  screenshotService = new ScreenshotService(() => backendService?.getUrl() || 'http://127.0.0.1:21978')
+  screenshotService = new ScreenshotService(() => {
+    if (!backendService) {
+      throw new Error('Backend service not initialized')
+    }
+    return backendService.getUrl()
+  })
   console.log('Screenshot service initialized')
 
   // Create window
