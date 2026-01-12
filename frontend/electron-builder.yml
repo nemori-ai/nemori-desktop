@@ -24,7 +24,7 @@ mac:
     - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
   notarize: false
   extraResources:
-    - from: "../backend-dist/mac/nemori-backend/"
+    - from: "../backend/dist/nemori-backend/"
       to: "backend/nemori-backend"
       filter:
         - "**/*"
@@ -37,7 +37,7 @@ dmg:
   artifactName: ${name}-${version}-${arch}.${ext}
 win:
   extraResources:
-    - from: "../backend-dist/win/nemori-backend/"
+    - from: "../backend/dist/nemori-backend/"
       to: "backend/nemori-backend"
       filter:
         - "**/*"
