@@ -244,12 +244,17 @@ app.whenReady().then(async () => {
 
   if (!backendStarted) {
     console.error('Failed to start backend service')
-    // Show error dialog and quit
+    // Show error dialog with helpful instructions
     const { dialog } = require('electron')
-    dialog.showErrorBox(
-      'Backend Start Failed',
-      'Failed to start the Nemori backend service. Please check the logs and try again.'
-    )
+    const isMac = process.platform === 'darwin'
+    const message = isMac
+      ? 'Failed to start the Nemori backend service.\n\n' +
+        'This is usually caused by macOS security restrictions.\n\n' +
+        'Please run this command in Terminal:\n\n' +
+        'xattr -cr /Applications/Nemori.app\n\n' +
+        'Then restart Nemori.'
+      : 'Failed to start the Nemori backend service. Please check the logs and try again.'
+    dialog.showErrorBox('Backend Start Failed', message)
     app.quit()
     return
   }
