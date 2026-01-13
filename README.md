@@ -119,8 +119,10 @@ Configure your LLM settings in the Settings page of the application. You can con
 
 **Embedding Model Configuration:**
 - Embedding API Key
-- Embedding Base URL (e.g., `https://api.openai.com/v1`)
-- Embedding Model (recommended: `text-embedding-3-small`)
+- Embedding Base URL (e.g., `https://openrouter.ai/api/v1`)
+- Embedding Model (recommended: `google/gemini-embedding-001`)
+
+> **Note:** OpenRouter supports embedding models including `google/gemini-embedding-001` and `baai/bge-base-en-v1.5`. The embedding dimension is automatically adapted based on the model.
 
 Or set environment variables:
 
@@ -132,8 +134,8 @@ export CHAT_MODEL="google/gemini-3-flash-preview"
 
 # Embedding Model
 export EMBEDDING_API_KEY="your-embedding-api-key"
-export EMBEDDING_BASE_URL="https://api.openai.com/v1"
-export EMBEDDING_MODEL="text-embedding-3-small"
+export EMBEDDING_BASE_URL="https://openrouter.ai/api/v1"
+export EMBEDDING_MODEL="google/gemini-embedding-001"
 ```
 
 ### Data Directory

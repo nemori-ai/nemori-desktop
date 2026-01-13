@@ -45,10 +45,10 @@ class Settings(BaseSettings):
     )
     default_model: str = Field(default="gpt-4o-mini", description="Default chat model")
     embedding_model: str = Field(
-        default="text-embedding-3-small",
+        default="google/gemini-embedding-001",
         description="Embedding model"
     )
-    embedding_dimension: int = Field(default=1536, description="Embedding dimension")
+    embedding_dimension: int = Field(default=0, description="Embedding dimension (0 = auto-adapt to model)")
 
     # Screenshot Settings
     capture_interval_ms: int = Field(default=10000, description="Screenshot interval in ms")

@@ -505,6 +505,44 @@ class ApiService {
     })
   }
 
+  async selectMonitors(
+    monitorIds: number[]
+  ): Promise<{ success: boolean; selected_monitors: number[]; monitors: Monitor[] }> {
+    // Use Electron's multi-monitor selection
+    if (window.api?.screenshot) {
+      const monitors = await window.api.screenshot.getMonitors()
+      // Convert index-based IDs to Electron source IDs
+      const electronIds = monitorIds
+        .filter(id => id >= 0 && id < monitors.length)
+        .map(id => monitors[id].id)
+
+      if (electronIds.length > 0) {
+        await window.api.screenshot.setMonitors(electronIds)
+        return {
+          success: true,
+          selected_monitors: monitorIds,
+          monitors: monitors.map((m, index) => ({
+            id: index,
+            name: m.name,
+            width: m.width,
+            height: m.height,
+            left: m.x,
+            top: m.y,
+            electronId: m.id
+          })) as Monitor[]
+        }
+      }
+      return { success: false, selected_monitors: [], monitors: [] }
+    }
+
+    // Fallback - just use the first monitor
+    return this.selectMonitor(monitorIds[0]).then(result => ({
+      success: result.success,
+      selected_monitors: result.success ? [result.selected as number] : [],
+      monitors: result.monitors
+    }))
+  }
+
   async getMonitorPreview(monitorId: number | string): Promise<string | Blob> {
     // Use Electron's preview API if available
     if (window.api?.screenshot) {
@@ -994,6 +1032,7 @@ export interface CaptureStatus {
   interval_ms: number
   screenshots_path: string
   selected_monitor: number
+  selected_monitors?: number[]  // For multi-monitor selection
   monitors: Monitor[]
 }
 

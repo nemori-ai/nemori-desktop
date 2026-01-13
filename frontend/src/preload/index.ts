@@ -44,8 +44,12 @@ const api = {
       ipcRenderer.invoke('screenshot:getPreview', monitorId) as Promise<string | null>,
     setMonitor: (monitorId: string) =>
       ipcRenderer.invoke('screenshot:setMonitor', monitorId) as Promise<boolean>,
+    setMonitors: (monitorIds: string[]) =>
+      ipcRenderer.invoke('screenshot:setMonitors', monitorIds) as Promise<boolean>,
     getSelectedMonitor: () =>
       ipcRenderer.invoke('screenshot:getSelectedMonitor') as Promise<string | null>,
+    getSelectedMonitors: () =>
+      ipcRenderer.invoke('screenshot:getSelectedMonitors') as Promise<string[]>,
     capture: () =>
       ipcRenderer.invoke('screenshot:capture') as Promise<{
         success: boolean

@@ -187,15 +187,15 @@ export default function ScreenshotsPage(): JSX.Element {
     }
   }
 
-  const handleSelectMonitor = async (monitorId: number): Promise<void> => {
+  const handleSelectMonitors = async (monitorIds: number[]): Promise<void> => {
     try {
-      const { selected, monitors } = await api.selectMonitor(monitorId)
+      const { selected_monitors, monitors } = await api.selectMonitors(monitorIds)
       setCaptureStatus((prev) =>
-        prev ? { ...prev, selected_monitor: selected, monitors } : null
+        prev ? { ...prev, selected_monitors, selected_monitor: selected_monitors[0], monitors } : null
       )
       setShowMonitorPicker(false)
     } catch (error) {
-      console.error('Failed to select monitor:', error)
+      console.error('Failed to select monitors:', error)
     }
   }
 
@@ -434,7 +434,7 @@ export default function ScreenshotsPage(): JSX.Element {
           captureStatus={captureStatus}
           monitorPreviews={monitorPreviews}
           loadingPreviews={loadingPreviews}
-          onSelect={handleSelectMonitor}
+          onSelect={handleSelectMonitors}
           onClose={() => setShowMonitorPicker(false)}
         />
       )}
@@ -738,7 +738,7 @@ function Pagination({
   )
 }
 
-// Monitor picker modal
+// Monitor picker modal - supports multi-select
 function MonitorPickerModal({
   captureStatus,
   monitorPreviews,
@@ -749,9 +749,46 @@ function MonitorPickerModal({
   captureStatus: CaptureStatus | null
   monitorPreviews: Record<number, string>
   loadingPreviews: boolean
-  onSelect: (id: number) => void
+  onSelect: (ids: number[]) => void
   onClose: () => void
 }): JSX.Element {
+  // Track selected monitors (initialize with currently selected)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(() => {
+    const initial = new Set<number>()
+    if (captureStatus?.selected_monitors) {
+      captureStatus.selected_monitors.forEach(id => initial.add(id))
+    } else if (captureStatus?.selected_monitor !== undefined) {
+      initial.add(captureStatus.selected_monitor)
+    }
+    return initial
+  })
+
+  const toggleMonitor = (id: number): void => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(id)) {
+        newSet.delete(id)
+      } else {
+        newSet.add(id)
+      }
+      return newSet
+    })
+  }
+
+  const handleConfirm = (): void => {
+    onSelect(Array.from(selectedIds))
+  }
+
+  const selectAll = (): void => {
+    if (captureStatus?.monitors) {
+      setSelectedIds(new Set(captureStatus.monitors.map(m => m.id)))
+    }
+  }
+
+  const selectNone = (): void => {
+    setSelectedIds(new Set())
+  }
+
   return (
     <div
       className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50"
@@ -762,7 +799,12 @@ function MonitorPickerModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold">Select Screen to Capture</h2>
+          <div>
+            <h2 className="text-xl font-bold">Select Screens to Capture</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Each screen will be captured independently with its own deduplication
+            </p>
+          </div>
           <button
             onClick={onClose}
             className="p-2 rounded-full hover:bg-muted/60 transition-all duration-200"
@@ -771,19 +813,38 @@ function MonitorPickerModal({
           </button>
         </div>
 
+        {/* Quick select buttons */}
+        <div className="flex items-center gap-2 mb-4">
+          <button
+            onClick={selectAll}
+            className="px-3 py-1.5 text-sm rounded-lg bg-muted/60 hover:bg-muted transition-all"
+          >
+            Select All
+          </button>
+          <button
+            onClick={selectNone}
+            className="px-3 py-1.5 text-sm rounded-lg bg-muted/60 hover:bg-muted transition-all"
+          >
+            Deselect All
+          </button>
+          <span className="text-sm text-muted-foreground ml-2">
+            {selectedIds.size} selected
+          </span>
+        </div>
+
         {loadingPreviews ? (
           <div className="flex items-center justify-center py-12">
             <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
             <span className="ml-3 text-muted-foreground">Loading previews...</span>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {captureStatus?.monitors.map((mon) => (
               <button
                 key={mon.id}
-                onClick={() => onSelect(mon.id)}
+                onClick={() => toggleMonitor(mon.id)}
                 className={`relative rounded-xl border-2 overflow-hidden transition-all duration-200 hover:shadow-warm ${
-                  captureStatus.selected_monitor === mon.id
+                  selectedIds.has(mon.id)
                     ? 'border-primary ring-2 ring-primary/20 shadow-warm'
                     : 'border-border/50 hover:border-primary/50'
                 }`}
@@ -807,15 +868,39 @@ function MonitorPickerModal({
                     {mon.width} x {mon.height}
                   </p>
                 </div>
-                {captureStatus.selected_monitor === mon.id && (
-                  <div className="absolute top-2 right-2 bg-primary text-primary-foreground text-xs px-2.5 py-1 rounded-full shadow-warm-sm">
-                    Selected
-                  </div>
-                )}
+                {/* Checkbox indicator */}
+                <div className={`absolute top-3 left-3 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${
+                  selectedIds.has(mon.id)
+                    ? 'bg-primary border-primary'
+                    : 'bg-background/80 border-border'
+                }`}>
+                  {selectedIds.has(mon.id) && (
+                    <svg className="w-4 h-4 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
               </button>
             ))}
           </div>
         )}
+
+        {/* Confirm button */}
+        <div className="flex justify-end mt-6 pt-4 border-t border-border/50">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm rounded-lg hover:bg-muted/60 transition-all mr-2"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={selectedIds.size === 0}
+            className="px-4 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            Confirm Selection
+          </button>
+        </div>
       </div>
     </div>
   )

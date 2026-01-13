@@ -32,8 +32,8 @@ class LLMService:
         # Embedding model configuration
         self._embedding_client: Optional[AsyncOpenAI] = None
         self._embedding_api_key: str = ""
-        self._embedding_base_url: str = "https://api.openai.com/v1"
-        self._embedding_model: str = "text-embedding-3-small"
+        self._embedding_base_url: str = "https://openrouter.ai/api/v1"
+        self._embedding_model: str = "google/gemini-embedding-001"
         self._embedding_dimension: int = settings.embedding_dimension
 
     @classmethod
@@ -360,8 +360,9 @@ class LLMService:
 
         embeddings = [data.embedding for data in response.data]
 
-        # Truncate to configured dimension if needed
-        if self._embedding_dimension and len(embeddings[0]) > self._embedding_dimension:
+        # Only truncate if dimension is explicitly configured (non-zero)
+        # Setting embedding_dimension to 0 means auto-adapt to model's native dimension
+        if self._embedding_dimension > 0 and len(embeddings[0]) > self._embedding_dimension:
             embeddings = [emb[:self._embedding_dimension] for emb in embeddings]
 
         return embeddings

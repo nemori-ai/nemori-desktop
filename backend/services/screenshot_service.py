@@ -29,7 +29,8 @@ class ScreenshotService:
         self._capture_task: Optional[asyncio.Task] = None
         self._is_capturing = False
         self._interval_ms = settings.capture_interval_ms
-        self._last_phash: Optional[str] = None
+        # Per-monitor deduplication: {monitor_id: last_phash}
+        self._last_phash_per_monitor: Dict[str, str] = {}
         self._similarity_threshold = settings.similarity_threshold
         self._screenshots_path = settings.screenshots_path
         self._selected_monitor: int = 1  # Default to primary monitor (1-indexed)
@@ -230,7 +231,7 @@ class ScreenshotService:
 
         Args:
             image_data: Base64-encoded PNG image data
-            monitor_id: Optional monitor ID for tracking
+            monitor_id: Optional monitor ID for tracking (used for per-monitor deduplication)
 
         Returns:
             Screenshot metadata dict or None if duplicate/failed
@@ -247,9 +248,12 @@ class ScreenshotService:
             # Calculate perceptual hash for deduplication
             phash = str(imagehash.phash(img))
 
-            # Check for duplicate
-            if self._last_phash and self._is_similar(phash, self._last_phash):
-                print("Skipping duplicate screenshot (uploaded)")
+            # Per-monitor deduplication: each monitor has its own hash channel
+            dedup_key = monitor_id or "default"
+            last_phash = self._last_phash_per_monitor.get(dedup_key)
+
+            if last_phash and self._is_similar(phash, last_phash):
+                print(f"Skipping duplicate screenshot for monitor {dedup_key}")
                 return None
 
             # Generate unique ID and timestamp
@@ -277,7 +281,8 @@ class ScreenshotService:
             }
 
             await db.save_screenshot(screenshot_data)
-            self._last_phash = phash
+            # Update per-monitor hash
+            self._last_phash_per_monitor[dedup_key] = phash
 
             # Notify memory manager for batch processing
             try:

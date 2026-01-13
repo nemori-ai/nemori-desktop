@@ -8,7 +8,6 @@ Can be run in two modes:
 import argparse
 import os
 import sys
-import time
 import uvicorn
 from contextlib import asynccontextmanager
 
@@ -29,25 +28,6 @@ if os.environ.get('NEMORI_DATA_DIR'):
     settings.data_dir = Path(os.environ['NEMORI_DATA_DIR'])
 
 
-def _init_vector_store_with_retry(max_retries: int = 3) -> None:
-    """Initialize VectorStore with retry logic to handle ChromaDB initialization bugs"""
-    for attempt in range(max_retries):
-        try:
-            vector_store = VectorStore.get_instance()
-            # Verify it's working by calling count()
-            vector_store.count()
-            print(f"VectorStore initialized successfully (attempt {attempt + 1})")
-            return
-        except Exception as e:
-            print(f"VectorStore initialization attempt {attempt + 1} failed: {e}")
-            # Reset the singleton to allow retry
-            VectorStore._instance = None
-            if attempt < max_retries - 1:
-                time.sleep(0.5)  # Brief delay before retry
-            else:
-                print("Warning: VectorStore initialization failed after all retries, continuing without vector store")
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
@@ -59,9 +39,15 @@ async def lifespan(app: FastAPI):
     await db.initialize()
     print(f"Database initialized at: {db.db_path}")
 
-    # Initialize VectorStore early with retry logic to avoid first-request errors
-    # This addresses ChromaDB bug: https://github.com/chroma-core/chroma/issues/5909
-    _init_vector_store_with_retry()
+    # Initialize VectorStore early to avoid first-request errors
+    # VectorStore now has built-in retry logic and graceful shutdown handling
+    try:
+        vector_store = VectorStore.get_instance()
+        count = vector_store.count()
+        print(f"VectorStore initialized with {count} embeddings")
+    except Exception as e:
+        print(f"Warning: VectorStore initialization failed: {e}")
+        print("Continuing without vector store - semantic search will be unavailable")
 
     # Initialize services
     llm_service = LLMService.get_instance()
@@ -74,6 +60,15 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     print("Shutting down Nemori Backend...")
+
+    # VectorStore cleanup is handled automatically via atexit and signal handlers
+    # but we can also explicitly trigger it here for cleaner shutdown
+    if VectorStore._instance is not None:
+        pending = VectorStore._instance.get_pending_writes_count()
+        if pending > 0:
+            print(f"Flushing {pending} pending VectorStore writes...")
+            VectorStore._instance.retry_pending_writes()
+
     await db.close()
 
 

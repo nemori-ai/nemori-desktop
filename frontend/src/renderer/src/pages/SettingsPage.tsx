@@ -58,8 +58,8 @@ export default function SettingsPage(): JSX.Element {
       setChatModel(settingsRes.settings.chat_model || 'google/gemini-3-flash-preview')
 
       // Set Embedding Model form values
-      setEmbeddingBaseUrl(settingsRes.settings.embedding_base_url || 'https://api.openai.com/v1')
-      setEmbeddingModel(settingsRes.settings.embedding_model || 'text-embedding-3-small')
+      setEmbeddingBaseUrl(settingsRes.settings.embedding_base_url || 'https://openrouter.ai/api/v1')
+      setEmbeddingModel(settingsRes.settings.embedding_model || 'google/gemini-embedding-001')
 
       // Set app settings form values
       setCaptureInterval(appRes.capture_interval_ms)
@@ -336,10 +336,10 @@ export default function SettingsPage(): JSX.Element {
               <p className="text-xs text-muted-foreground">
                 Get your API key from{' '}
                 <button
-                  onClick={() => handleOpenExternal('https://platform.openai.com/api-keys')}
+                  onClick={() => handleOpenExternal('https://openrouter.ai/settings/keys')}
                   className="text-primary hover:underline inline-flex items-center gap-1"
                 >
-                  OpenAI <ExternalLink className="w-3 h-3" />
+                  OpenRouter <ExternalLink className="w-3 h-3" />
                 </button>
               </p>
             </div>
@@ -351,7 +351,7 @@ export default function SettingsPage(): JSX.Element {
                 type="text"
                 value={embeddingBaseUrl}
                 onChange={(e) => setEmbeddingBaseUrl(e.target.value)}
-                placeholder="https://api.openai.com/v1"
+                placeholder="https://openrouter.ai/api/v1"
                 className="w-full px-4 py-2.5 rounded-lg border border-border/50 bg-background/80 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all duration-200"
               />
             </div>
@@ -363,11 +363,11 @@ export default function SettingsPage(): JSX.Element {
                 type="text"
                 value={embeddingModel}
                 onChange={(e) => setEmbeddingModel(e.target.value)}
-                placeholder="text-embedding-3-small"
+                placeholder="google/gemini-embedding-001"
                 className="w-full px-4 py-2.5 rounded-lg border border-border/50 bg-background/80 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all duration-200"
               />
               <p className="text-xs text-muted-foreground">
-                Recommended: text-embedding-3-small
+                OpenRouter: google/gemini-embedding-001, baai/bge-base-en-v1.5
               </p>
             </div>
           </div>

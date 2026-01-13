@@ -18,7 +18,7 @@ dependencies = [
     "langchain-openai>=1.1.0",
     "langgraph>=0.5.0",
     # Vector store
-    "chromadb>=1.0.0",
+    "chromadb>=1.4.0,<2.0.0",
     # Image processing
     "pillow>=11.0.0",
     "imagehash>=4.3.1",

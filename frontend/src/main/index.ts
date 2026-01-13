@@ -193,8 +193,17 @@ function setupIpcHandlers(): void {
     return true
   })
 
+  ipcMain.handle('screenshot:setMonitors', (_event, monitorIds: string[]) => {
+    screenshotService?.setSelectedMonitors(monitorIds)
+    return true
+  })
+
   ipcMain.handle('screenshot:getSelectedMonitor', () => {
     return screenshotService?.getSelectedMonitor()
+  })
+
+  ipcMain.handle('screenshot:getSelectedMonitors', () => {
+    return screenshotService?.getSelectedMonitors()
   })
 
   ipcMain.handle('screenshot:capture', async () => {

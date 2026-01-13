@@ -8,6 +8,7 @@ export interface MonitorInfo {
   height: number
   x: number
   y: number
+  selected?: boolean // Whether this monitor is selected for capture
 }
 
 export interface CaptureResult {
@@ -18,7 +19,8 @@ export interface CaptureResult {
 }
 
 export class ScreenshotService {
-  private selectedMonitorId: string | null = null
+  // Support multiple selected monitors for independent capture
+  private selectedMonitorIds: Set<string> = new Set()
   private captureInterval: NodeJS.Timeout | null = null
   private isCapturing: boolean = false
   private intervalMs: number = 10000
@@ -58,6 +60,7 @@ export class ScreenshotService {
 
   /**
    * Get list of available monitors/screens
+   * Each monitor can be independently selected for capture
    */
   async getMonitors(): Promise<MonitorInfo[]> {
     const displays = screen.getAllDisplays()
@@ -67,47 +70,32 @@ export class ScreenshotService {
     })
 
     const monitors: MonitorInfo[] = []
-
-    // Add "All Screens" option
     const primaryDisplay = screen.getPrimaryDisplay()
-    const allBounds = displays.reduce(
-      (acc, d) => ({
-        width: Math.max(acc.width, d.bounds.x + d.bounds.width),
-        height: Math.max(acc.height, d.bounds.y + d.bounds.height)
-      }),
-      { width: 0, height: 0 }
-    )
 
-    monitors.push({
-      id: 'all',
-      name: 'All Screens',
-      width: allBounds.width,
-      height: allBounds.height,
-      x: 0,
-      y: 0
-    })
-
-    // Add individual screens
+    // Add individual screens (no "All Screens" option - each screen is captured independently)
     for (const source of sources) {
       const display = displays.find((d) => source.display_id === String(d.id))
+      const isPrimary = display?.id === primaryDisplay.id
       if (display) {
         monitors.push({
           id: source.id,
-          name: source.name || `Screen ${monitors.length}`,
+          name: isPrimary ? 'Primary Screen' : source.name || `Screen ${monitors.length + 1}`,
           width: display.bounds.width,
           height: display.bounds.height,
           x: display.bounds.x,
-          y: display.bounds.y
+          y: display.bounds.y,
+          selected: isPrimary // Primary screen selected by default
         })
       } else {
         // Fallback for screens without matching display
         monitors.push({
           id: source.id,
-          name: source.name || `Screen ${monitors.length}`,
+          name: source.name || `Screen ${monitors.length + 1}`,
           width: primaryDisplay.bounds.width,
           height: primaryDisplay.bounds.height,
           x: 0,
-          y: 0
+          y: 0,
+          selected: monitors.length === 0 // First one selected by default
         })
       }
     }
@@ -117,29 +105,26 @@ export class ScreenshotService {
 
   /**
    * Get preview thumbnail for a specific monitor
+   * Uses higher resolution (960x540) for better quality in picker UI
    */
   async getMonitorPreview(monitorId: string): Promise<string | null> {
     try {
-      if (monitorId === 'all') {
-        // For "all screens", capture primary and resize
-        const sources = await desktopCapturer.getSources({
-          types: ['screen'],
-          thumbnailSize: { width: 320, height: 180 }
-        })
-        if (sources.length > 0) {
-          return sources[0].thumbnail.toDataURL()
-        }
-        return null
-      }
+      // Use higher resolution for better preview quality
+      const previewSize = { width: 960, height: 540 }
 
       const sources = await desktopCapturer.getSources({
         types: ['screen'],
-        thumbnailSize: { width: 320, height: 180 }
+        thumbnailSize: previewSize
       })
 
       const source = sources.find((s) => s.id === monitorId)
       if (source) {
         return source.thumbnail.toDataURL()
+      }
+
+      // Fallback to first source if specific monitor not found
+      if (sources.length > 0) {
+        return sources[0].thumbnail.toDataURL()
       }
 
       return null
@@ -150,76 +135,105 @@ export class ScreenshotService {
   }
 
   /**
-   * Set the selected monitor for capture
+   * Set the selected monitor for capture (legacy single-select)
    */
   setSelectedMonitor(monitorId: string): void {
-    this.selectedMonitorId = monitorId
+    this.selectedMonitorIds.clear()
+    this.selectedMonitorIds.add(monitorId)
   }
 
   /**
-   * Get currently selected monitor
+   * Get currently selected monitor (legacy - returns first selected)
    */
   getSelectedMonitor(): string | null {
-    return this.selectedMonitorId
+    return this.selectedMonitorIds.size > 0 ? Array.from(this.selectedMonitorIds)[0] : null
   }
 
   /**
-   * Capture screenshot from selected monitor
+   * Toggle monitor selection (for multi-select)
+   */
+  toggleMonitorSelection(monitorId: string): void {
+    if (this.selectedMonitorIds.has(monitorId)) {
+      this.selectedMonitorIds.delete(monitorId)
+    } else {
+      this.selectedMonitorIds.add(monitorId)
+    }
+  }
+
+  /**
+   * Set multiple monitors for capture
+   */
+  setSelectedMonitors(monitorIds: string[]): void {
+    this.selectedMonitorIds = new Set(monitorIds)
+  }
+
+  /**
+   * Get all selected monitor IDs
+   */
+  getSelectedMonitors(): string[] {
+    return Array.from(this.selectedMonitorIds)
+  }
+
+  /**
+   * Check if a monitor is selected
+   */
+  isMonitorSelected(monitorId: string): boolean {
+    return this.selectedMonitorIds.has(monitorId)
+  }
+
+  /**
+   * Capture screenshot from selected monitor (legacy - single monitor)
    */
   async capture(): Promise<CaptureResult> {
+    const results = await this.captureAllSelected()
+    return results.length > 0 ? results[0] : { success: false, error: 'No monitors selected' }
+  }
+
+  /**
+   * Capture screenshots from all selected monitors independently
+   * Each monitor is captured separately with its own deduplication channel
+   */
+  async captureAllSelected(): Promise<CaptureResult[]> {
     try {
       // Check permission first
       const permission = this.checkPermission()
       if (!permission.granted) {
-        return {
-          success: false,
-          error: 'Screen recording permission not granted'
-        }
+        return [{ success: false, error: 'Screen recording permission not granted' }]
       }
 
+      // Get full resolution screenshots
       const sources = await desktopCapturer.getSources({
-        types: ['screen'],
-        thumbnailSize: { width: 1920, height: 1080 },
-        fetchWindowIcons: false
-      })
-
-      if (sources.length === 0) {
-        return {
-          success: false,
-          error: 'No screens available'
-        }
-      }
-
-      let targetSource = sources[0]
-
-      // If a specific monitor is selected, find it
-      if (this.selectedMonitorId && this.selectedMonitorId !== 'all') {
-        const found = sources.find((s) => s.id === this.selectedMonitorId)
-        if (found) {
-          targetSource = found
-        }
-      }
-
-      // Get full resolution screenshot
-      const fullSources = await desktopCapturer.getSources({
         types: ['screen'],
         thumbnailSize: { width: 3840, height: 2160 } // 4K max
       })
 
-      const fullSource = fullSources.find((s) => s.id === targetSource.id) || fullSources[0]
-      const imageData = fullSource.thumbnail.toPNG().toString('base64')
-
-      return {
-        success: true,
-        imageData,
-        monitorId: targetSource.id
+      if (sources.length === 0) {
+        return [{ success: false, error: 'No screens available' }]
       }
+
+      // If no monitors selected, select all by default
+      if (this.selectedMonitorIds.size === 0) {
+        sources.forEach((s) => this.selectedMonitorIds.add(s.id))
+      }
+
+      const results: CaptureResult[] = []
+
+      // Capture each selected monitor independently
+      for (const source of sources) {
+        if (this.selectedMonitorIds.has(source.id)) {
+          const imageData = source.thumbnail.toPNG().toString('base64')
+          results.push({
+            success: true,
+            imageData,
+            monitorId: source.id
+          })
+        }
+      }
+
+      return results.length > 0 ? results : [{ success: false, error: 'No selected monitors found' }]
     } catch (error) {
       console.error('Screenshot capture failed:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      }
+      return [{ success: false, error: error instanceof Error ? error.message : 'Unknown error' }]
     }
   }
 
@@ -287,20 +301,32 @@ export class ScreenshotService {
 
   /**
    * Capture and upload to backend
+   * Captures all selected monitors and uploads each independently
+   * Each monitor has its own deduplication channel on the backend
    */
   private async captureAndUpload(): Promise<void> {
     try {
-      console.log('Starting capture...')
-      const result = await this.capture()
-      if (!result.success || !result.imageData) {
-        console.log('Capture skipped:', result.error)
-        return
+      console.log('Starting capture for all selected monitors...')
+      const results = await this.captureAllSelected()
+
+      let uploadedCount = 0
+      for (const result of results) {
+        if (!result.success || !result.imageData) {
+          console.log(`Capture skipped for monitor ${result.monitorId}:`, result.error)
+          continue
+        }
+
+        console.log(
+          `Captured screenshot from monitor ${result.monitorId} (${result.imageData.length} bytes), uploading...`
+        )
+        // Upload to backend with monitor_id for per-monitor deduplication
+        await this.uploadToBackend(result.imageData, result.monitorId)
+        uploadedCount++
       }
 
-      console.log(`Captured screenshot (${result.imageData.length} bytes), uploading to backend...`)
-      // Upload to backend
-      await this.uploadToBackend(result.imageData, result.monitorId)
-      console.log('Screenshot uploaded successfully')
+      if (uploadedCount > 0) {
+        console.log(`${uploadedCount} screenshot(s) uploaded successfully`)
+      }
     } catch (error) {
       console.error('Capture and upload failed:', error)
     }
