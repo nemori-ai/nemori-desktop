@@ -125,6 +125,15 @@ class MemoryOrchestrator:
 
             processed_count = 0
 
+            # Check LLM configuration before processing
+            from services.llm_service import LLMService
+            llm = LLMService.get_instance()
+            if not llm.is_chat_configured():
+                print("WARNING: LLM not configured. Memory processing requires API keys to be set.")
+                print("Please configure your LLM API keys in Settings to enable memory generation.")
+                # Don't clear queue - keep items for later processing when LLM is configured
+                return
+
             for segmentation in segmentations:
                 segment_size = segmentation.cut_position
                 segment_ids = item_ids[processed_count:processed_count + segment_size]
@@ -142,19 +151,23 @@ class MemoryOrchestrator:
                         self._episodic_since_visualization += 1
                         print(f"Created episodic memory: {episodic_memory.get('title', 'Untitled')}")
 
-                    # Create semantic memories from the same segment
-                    try:
-                        semantic_memories = await self.semantic_extractor.create_from_segment(
-                            segment_ids,
-                            summary=segmentation.summary,
-                            top_n=5,
-                            source_app=['nemori']
-                        )
-                        print(f"Created {len(semantic_memories)} semantic memories")
-                    except Exception as e:
-                        print(f"Semantic extractor failed: {e}")
+                        # Only create semantic memories if episodic was successful
+                        try:
+                            semantic_memories = await self.semantic_extractor.create_from_segment(
+                                segment_ids,
+                                summary=segmentation.summary,
+                                top_n=5,
+                                source_app=['nemori']
+                            )
+                            print(f"Created {len(semantic_memories)} semantic memories")
+                        except Exception as e:
+                            print(f"Semantic extractor failed: {e}")
 
-                    processed_count += len(segment_ids)
+                        # Only mark as processed if memory was actually created
+                        processed_count += len(segment_ids)
+                    else:
+                        print(f"Failed to create episodic memory - items will be kept in queue for retry")
+                        # Don't increment processed_count - items stay in queue
 
                 # For now, process only the first segmentation
                 break

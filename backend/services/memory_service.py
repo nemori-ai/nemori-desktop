@@ -181,9 +181,10 @@ class MemoryService:
             return False
 
     async def get_stats(self) -> Dict[str, Any]:
-        """Get memory statistics"""
+        """Get memory statistics including system status"""
         db = Database.get_instance()
         vector_store = VectorStore.get_instance()
+        llm = LLMService.get_instance()
 
         db_stats = await db.get_stats()
         vector_count = vector_store.count()
@@ -194,7 +195,10 @@ class MemoryService:
         return {
             **db_stats,
             "vector_embeddings": vector_count,
-            "pending_batch": batch_status.get("queue_size", 0)
+            "pending_batch": batch_status.get("queue_size", 0),
+            "llm_configured": llm.is_chat_configured(),
+            "embedding_configured": llm.is_embedding_configured(),
+            "memory_enabled": batch_status.get("memory_enabled", True)
         }
 
     async def get_episodic_memories_since(

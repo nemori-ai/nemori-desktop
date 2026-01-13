@@ -1,17 +1,27 @@
 """
 Vector Store using ChromaDB for semantic search
 Enhanced with graceful shutdown, thread safety, retry logic, and pending writes queue
+
+Includes automatic handling of embedding dimension changes to prevent corruption.
 """
 import atexit
+import json
+import os
+import shutil
 import signal
 import threading
 import time
+from datetime import datetime
 from typing import Optional, List, Dict, Any
 
 import chromadb
 from chromadb.config import Settings as ChromaSettings
 
 from config.settings import settings
+
+
+# File to track embedding configuration
+EMBEDDING_CONFIG_FILE = "embedding_config.json"
 
 
 class VectorStore:
@@ -145,21 +155,127 @@ class VectorStore:
         raise RuntimeError(f"VectorStore: Failed to initialize after {self._max_retry_count} attempts: {last_error}")
 
     def _initialize(self) -> None:
-        """Initialize ChromaDB client and collection"""
+        """Initialize ChromaDB client and collection with dimension safety checks"""
+        chroma_path = str(settings.chroma_path)
+
+        # Check for embedding configuration changes that require reset
+        config_path = os.path.join(os.path.dirname(chroma_path), EMBEDDING_CONFIG_FILE)
+        current_config = self._get_current_embedding_config()
+        stored_config = self._load_embedding_config(config_path)
+
+        # Detect dimension mismatch
+        if stored_config and current_config:
+            if stored_config.get("model") != current_config.get("model"):
+                print(f"VectorStore: Embedding model changed from '{stored_config.get('model')}' to '{current_config.get('model')}'")
+                print("VectorStore: Clearing vector store to prevent dimension mismatch corruption...")
+                self._backup_and_clear_chroma(chroma_path)
+
         # Create persistent client
-        self._client = chromadb.PersistentClient(
-            path=str(settings.chroma_path),
-            settings=ChromaSettings(
-                anonymized_telemetry=False,
-                allow_reset=True
+        try:
+            self._client = chromadb.PersistentClient(
+                path=chroma_path,
+                settings=ChromaSettings(
+                    anonymized_telemetry=False,
+                    allow_reset=True
+                )
             )
-        )
+        except Exception as e:
+            # If ChromaDB fails to initialize (likely corruption), backup and retry
+            error_str = str(e).lower()
+            if "panic" in error_str or "range" in error_str or "index" in error_str or "corrupt" in error_str:
+                print(f"VectorStore: ChromaDB corruption detected: {e}")
+                print("VectorStore: Backing up corrupted database and creating fresh instance...")
+                self._backup_and_clear_chroma(chroma_path)
+
+                # Retry after clearing
+                self._client = chromadb.PersistentClient(
+                    path=chroma_path,
+                    settings=ChromaSettings(
+                        anonymized_telemetry=False,
+                        allow_reset=True
+                    )
+                )
+            else:
+                raise
 
         # Get or create collection
         self._collection = self._client.get_or_create_collection(
             name=settings.chroma_collection,
             metadata={"hnsw:space": "cosine"}
         )
+
+        # Save current embedding config for future comparison
+        self._save_embedding_config(config_path, current_config)
+
+    def _get_current_embedding_config(self) -> Dict[str, Any]:
+        """Get current embedding model configuration from settings/database"""
+        # Default fallback config
+        default_config = {
+            "model": getattr(settings, 'embedding_model', 'text-embedding-3-small'),
+            "base_url": getattr(settings, 'embedding_base_url', 'https://api.openai.com/v1')
+        }
+
+        try:
+            # Try to get from database settings
+            import asyncio
+            from storage.database import Database
+
+            async def _get_config():
+                db = Database.get_instance()
+                model = await db.get_setting("embedding_model")
+                base_url = await db.get_setting("embedding_base_url")
+                return {
+                    "model": model or default_config["model"],
+                    "base_url": base_url or default_config["base_url"]
+                }
+
+            # Run async function
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # If we're in an async context, use default config
+                    return default_config
+                return loop.run_until_complete(_get_config())
+            except RuntimeError:
+                # No event loop, create one
+                return asyncio.run(_get_config())
+        except Exception as e:
+            print(f"VectorStore: Could not get embedding config from database: {e}")
+            return default_config
+
+    def _load_embedding_config(self, config_path: str) -> Optional[Dict[str, Any]]:
+        """Load stored embedding configuration"""
+        try:
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    return json.load(f)
+        except Exception as e:
+            print(f"VectorStore: Could not load embedding config: {e}")
+        return None
+
+    def _save_embedding_config(self, config_path: str, config: Dict[str, Any]) -> None:
+        """Save current embedding configuration"""
+        try:
+            config["saved_at"] = datetime.now().isoformat()
+            with open(config_path, 'w') as f:
+                json.dump(config, f, indent=2)
+        except Exception as e:
+            print(f"VectorStore: Could not save embedding config: {e}")
+
+    def _backup_and_clear_chroma(self, chroma_path: str) -> None:
+        """Backup corrupted ChromaDB and create fresh instance"""
+        if os.path.exists(chroma_path):
+            backup_path = f"{chroma_path}.backup.{int(time.time())}"
+            try:
+                shutil.move(chroma_path, backup_path)
+                print(f"VectorStore: Backed up corrupted database to {backup_path}")
+            except Exception as e:
+                print(f"VectorStore: Could not backup, trying to remove: {e}")
+                try:
+                    shutil.rmtree(chroma_path)
+                    print(f"VectorStore: Removed corrupted database at {chroma_path}")
+                except Exception as e2:
+                    print(f"VectorStore: Could not remove corrupted database: {e2}")
 
     def is_initialized(self) -> bool:
         """Check if the vector store is properly initialized"""
