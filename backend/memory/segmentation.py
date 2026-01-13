@@ -148,51 +148,62 @@ Important:
 - Always provide exactly one segmentation decision
 - Focus on the most significant natural breakpoint if multiple exist"""
 
-        try:
-            # Try multimodal with screenshots first
-            image_urls = await self._collect_screenshot_images(messages, max_images=10)
+        import asyncio
+        max_retries = 2  # Fewer retries for segmentation since it has a good fallback
+        last_error = None
 
-            if image_urls:
-                response = await self.llm.chat_with_images(
-                    prompt=prompt,
-                    image_urls=image_urls,
-                    temperature=0.3,
-                    response_format={"type": "json_object"}
-                )
-            else:
-                response = await self.llm.chat(
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.3,
-                    response_format={"type": "json_object"}
-                )
+        for attempt in range(max_retries):
+            try:
+                # Try multimodal with screenshots first
+                image_urls = await self._collect_screenshot_images(messages, max_images=10)
 
-            result = self.llm.parse_json_response(response)
+                if image_urls:
+                    response = await self.llm.chat_with_images(
+                        prompt=prompt,
+                        image_urls=image_urls,
+                        temperature=0.3,
+                        response_format={"type": "json_object"}
+                    )
+                else:
+                    response = await self.llm.chat(
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0.3,
+                        response_format={"type": "json_object"}
+                    )
 
-            if not result or not isinstance(result, list) or len(result) == 0:
-                raise ValueError("Invalid response format")
+                result = self.llm.parse_json_response(response)
 
-            segmentations = []
-            for seg in result:
-                if not isinstance(seg.get('reason'), str) or not isinstance(seg.get('cutPosition'), (int, float)):
-                    raise ValueError("Invalid segmentation object")
+                if not result or not isinstance(result, list) or len(result) == 0:
+                    raise ValueError("Invalid response format")
 
-                cut_pos = int(seg['cutPosition'])
-                cut_pos = max(1, min(num_events, cut_pos))
+                segmentations = []
+                for seg in result:
+                    if not isinstance(seg.get('reason'), str) or not isinstance(seg.get('cutPosition'), (int, float)):
+                        raise ValueError("Invalid segmentation object")
 
-                segmentations.append(EventSegmentation(
-                    reason=seg['reason'],
-                    cut_position=cut_pos,
-                    summary=seg.get('summary', '')
-                ))
+                    cut_pos = int(seg['cutPosition'])
+                    cut_pos = max(1, min(num_events, cut_pos))
 
-            return segmentations
+                    segmentations.append(EventSegmentation(
+                        reason=seg['reason'],
+                        cut_position=cut_pos,
+                        summary=seg.get('summary', '')
+                    ))
 
-        except Exception as e:
-            print(f"Error in event segmentation: {e}")
-            return [EventSegmentation(
-                reason="Segmentation analysis failed, processing full batch",
-                cut_position=len(messages)
-            )]
+                return segmentations
+
+            except Exception as e:
+                last_error = e
+                print(f"Error in event segmentation (attempt {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(1)  # Short delay before retry
+
+        # All retries failed - use fallback
+        print(f"Segmentation failed after {max_retries} attempts, using full batch fallback")
+        return [EventSegmentation(
+            reason="Segmentation analysis failed, processing full batch",
+            cut_position=len(messages)
+        )]
 
     async def _collect_screenshot_images(
         self,

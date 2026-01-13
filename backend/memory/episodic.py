@@ -159,9 +159,10 @@ class EpisodicProcessor:
         self,
         event_details: List[str],
         summary: Optional[str] = None,
-        screenshot_images: Optional[List[str]] = None
+        screenshot_images: Optional[List[str]] = None,
+        max_retries: int = 3
     ) -> Optional[Dict[str, str]]:
-        """Generate episodic content using LLM (with optional images)"""
+        """Generate episodic content using LLM (with optional images) with retry logic"""
         if not self.llm.is_configured():
             return None
 
@@ -192,27 +193,42 @@ Return your response in JSON format:
   "content": "..."
 }}"""
 
-        try:
-            if screenshot_images:
-                # Use multimodal chat with images
-                response = await self.llm.chat_with_images(
-                    prompt=prompt,
-                    image_urls=screenshot_images,
-                    temperature=0.7,
-                    response_format={"type": "json_object"}
-                )
-            else:
-                # Text-only chat
-                response = await self.llm.chat(
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.7,
-                    response_format={"type": "json_object"}
-                )
-            result = self.llm.parse_json_response(response)
-            return result
-        except Exception as e:
-            print(f"Error generating episodic content: {e}")
-            return None
+        import asyncio
+        last_error = None
+
+        for attempt in range(max_retries):
+            try:
+                if screenshot_images:
+                    # Use multimodal chat with images
+                    response = await self.llm.chat_with_images(
+                        prompt=prompt,
+                        image_urls=screenshot_images,
+                        temperature=0.7,
+                        response_format={"type": "json_object"}
+                    )
+                else:
+                    # Text-only chat
+                    response = await self.llm.chat(
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0.7,
+                        response_format={"type": "json_object"}
+                    )
+                result = self.llm.parse_json_response(response)
+                if result and result.get('title') and result.get('content'):
+                    return result
+                else:
+                    raise ValueError("Invalid response format - missing title or content")
+
+            except Exception as e:
+                last_error = e
+                wait_time = 2 ** attempt  # Exponential backoff: 1, 2, 4 seconds
+                print(f"Error generating episodic content (attempt {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    print(f"Retrying in {wait_time} seconds...")
+                    await asyncio.sleep(wait_time)
+
+        print(f"Failed to generate episodic content after {max_retries} attempts: {last_error}")
+        return None
 
     async def _collect_screenshot_images(
         self,

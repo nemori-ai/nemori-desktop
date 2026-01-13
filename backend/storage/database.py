@@ -279,9 +279,19 @@ class Database:
         return self._connection is not None
 
     async def close(self) -> None:
+        """Close database connection with proper WAL checkpoint"""
         if self._connection:
-            await self._connection.close()
-            self._connection = None
+            try:
+                # Force WAL checkpoint to ensure all changes are written to main database
+                await self._connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                await self._connection.commit()
+                print("Database: WAL checkpoint completed")
+            except Exception as e:
+                print(f"Database: WAL checkpoint failed (non-critical): {e}")
+            finally:
+                await self._connection.close()
+                self._connection = None
+                print("Database: Connection closed")
 
     # ==================== Screenshot Operations ====================
 
