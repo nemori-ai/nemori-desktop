@@ -29,6 +29,10 @@ export default function SettingsPage(): JSX.Element {
   const [showChatApiKey, setShowChatApiKey] = useState(false)
   const [showEmbeddingApiKey, setShowEmbeddingApiKey] = useState(false)
 
+  // Track if user is editing API keys (to distinguish empty string from "not editing")
+  const [isEditingChatApiKey, setIsEditingChatApiKey] = useState(false)
+  const [isEditingEmbeddingApiKey, setIsEditingEmbeddingApiKey] = useState(false)
+
   // App settings form state
   const [captureInterval, setCaptureInterval] = useState(10000)
   const [batchSize, setBatchSize] = useState(20)
@@ -112,13 +116,17 @@ export default function SettingsPage(): JSX.Element {
     try {
       const config: LLMConfig = {}
 
-      // Chat model config
-      if (chatApiKey) config.chat_api_key = chatApiKey
+      // Chat model config - if editing, use the value (even if empty to clear)
+      if (isEditingChatApiKey) {
+        config.chat_api_key = chatApiKey  // Can be empty string to clear
+      }
       if (chatBaseUrl) config.chat_base_url = chatBaseUrl
       if (chatModel) config.chat_model = chatModel
 
-      // Embedding model config
-      if (embeddingApiKey) config.embedding_api_key = embeddingApiKey
+      // Embedding model config - if editing, use the value (even if empty to clear)
+      if (isEditingEmbeddingApiKey) {
+        config.embedding_api_key = embeddingApiKey  // Can be empty string to clear
+      }
       if (embeddingBaseUrl) config.embedding_base_url = embeddingBaseUrl
       if (embeddingModel) config.embedding_model = embeddingModel
 
@@ -132,24 +140,31 @@ export default function SettingsPage(): JSX.Element {
       const { configured } = await api.configureLLM(config)
       setLlmConfigured(configured)
 
-      // Clear the API key fields after saving (for security)
+      // Clear the API key fields and flags after saving
       setChatApiKey('')
       setEmbeddingApiKey('')
+      setIsEditingChatApiKey(false)
+      setIsEditingEmbeddingApiKey(false)
 
       await loadSettings()
 
       const savedItems: string[] = []
+      const clearedItems: string[] = []
       if (config.chat_api_key) savedItems.push('Chat API Key')
+      else if (isEditingChatApiKey && !config.chat_api_key) clearedItems.push('Chat API Key')
       if (config.chat_base_url) savedItems.push('Chat Base URL')
       if (config.chat_model) savedItems.push('Chat Model')
       if (config.embedding_api_key) savedItems.push('Embedding API Key')
+      else if (isEditingEmbeddingApiKey && !config.embedding_api_key) clearedItems.push('Embedding API Key')
       if (config.embedding_base_url) savedItems.push('Embedding Base URL')
       if (config.embedding_model) savedItems.push('Embedding Model')
 
-      setTestResult({
-        success: true,
-        message: `Saved successfully: ${savedItems.join(', ')}. LLM ${configured ? 'is now configured' : 'needs API key'}.`
-      })
+      let message = ''
+      if (savedItems.length > 0) message += `Saved: ${savedItems.join(', ')}. `
+      if (clearedItems.length > 0) message += `Cleared: ${clearedItems.join(', ')}. `
+      message += `LLM ${configured ? 'is now configured' : 'needs API key'}.`
+
+      setTestResult({ success: true, message })
     } catch (error: any) {
       setTestResult({ success: false, message: error.message || 'Failed to save settings' })
     } finally {
@@ -232,7 +247,7 @@ export default function SettingsPage(): JSX.Element {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium">Chat API Key</label>
-                {settings.chat_api_key && !chatApiKey && (
+                {settings.chat_api_key && !isEditingChatApiKey && (
                   <span className="text-xs text-primary flex items-center gap-1">
                     <Check className="w-3 h-3" />
                     Configured
@@ -242,11 +257,15 @@ export default function SettingsPage(): JSX.Element {
               <div className="relative">
                 <input
                   type={showChatApiKey ? 'text' : 'password'}
-                  value={chatApiKey || (settings.chat_api_key ? settings.chat_api_key : '')}
-                  onChange={(e) => setChatApiKey(e.target.value)}
+                  value={isEditingChatApiKey ? chatApiKey : (settings.chat_api_key || '')}
+                  onChange={(e) => {
+                    setChatApiKey(e.target.value)
+                    setIsEditingChatApiKey(true)
+                  }}
                   onFocus={() => {
-                    if (!chatApiKey && settings.chat_api_key) {
+                    if (!isEditingChatApiKey) {
                       setChatApiKey('')
+                      setIsEditingChatApiKey(true)
                     }
                   }}
                   placeholder="Enter your Chat API key"
@@ -306,7 +325,7 @@ export default function SettingsPage(): JSX.Element {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium">Embedding API Key</label>
-                {settings.embedding_api_key && !embeddingApiKey && (
+                {settings.embedding_api_key && !isEditingEmbeddingApiKey && (
                   <span className="text-xs text-primary flex items-center gap-1">
                     <Check className="w-3 h-3" />
                     Configured
@@ -316,11 +335,15 @@ export default function SettingsPage(): JSX.Element {
               <div className="relative">
                 <input
                   type={showEmbeddingApiKey ? 'text' : 'password'}
-                  value={embeddingApiKey || (settings.embedding_api_key ? settings.embedding_api_key : '')}
-                  onChange={(e) => setEmbeddingApiKey(e.target.value)}
+                  value={isEditingEmbeddingApiKey ? embeddingApiKey : (settings.embedding_api_key || '')}
+                  onChange={(e) => {
+                    setEmbeddingApiKey(e.target.value)
+                    setIsEditingEmbeddingApiKey(true)
+                  }}
                   onFocus={() => {
-                    if (!embeddingApiKey && settings.embedding_api_key) {
+                    if (!isEditingEmbeddingApiKey) {
                       setEmbeddingApiKey('')
+                      setIsEditingEmbeddingApiKey(true)
                     }
                   }}
                   placeholder="Enter your Embedding API key"

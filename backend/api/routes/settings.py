@@ -137,10 +137,15 @@ async def configure_llm(config: LLMConfig):
     llm = LLMService.get_instance()
 
     # Chat model configuration
-    if config.chat_api_key:
+    if config.chat_api_key is not None:
         api_key = config.chat_api_key.strip()
-        await db.set_setting("chat_api_key", api_key)
-        llm.set_chat_api_key(api_key)
+        if api_key:
+            await db.set_setting("chat_api_key", api_key)
+            llm.set_chat_api_key(api_key)
+        else:
+            # Empty string means delete
+            await db.delete_setting("chat_api_key")
+            llm.set_chat_api_key("")
 
     if config.chat_base_url:
         await db.set_setting("chat_base_url", config.chat_base_url)
@@ -151,10 +156,15 @@ async def configure_llm(config: LLMConfig):
         llm.set_chat_model(config.chat_model)
 
     # Embedding model configuration
-    if config.embedding_api_key:
+    if config.embedding_api_key is not None:
         api_key = config.embedding_api_key.strip()
-        await db.set_setting("embedding_api_key", api_key)
-        llm.set_embedding_api_key(api_key)
+        if api_key:
+            await db.set_setting("embedding_api_key", api_key)
+            llm.set_embedding_api_key(api_key)
+        else:
+            # Empty string means delete
+            await db.delete_setting("embedding_api_key")
+            llm.set_embedding_api_key("")
 
     if config.embedding_base_url:
         await db.set_setting("embedding_base_url", config.embedding_base_url)

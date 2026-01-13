@@ -693,6 +693,15 @@ class Database:
             )
             await self._connection.commit()
 
+    async def delete_setting(self, key: str) -> None:
+        """Delete a setting by key"""
+        async with self._lock:
+            await self._connection.execute(
+                "DELETE FROM settings WHERE key = ?",
+                (key,),
+            )
+            await self._connection.commit()
+
     async def get_all_settings(self) -> Dict[str, str]:
         cursor = await self._connection.execute("SELECT key, value FROM settings")
         rows = await cursor.fetchall()
