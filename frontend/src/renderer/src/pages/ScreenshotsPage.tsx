@@ -365,8 +365,8 @@ export default function ScreenshotsPage(): JSX.Element {
               {totalCount} screenshots
             </span>
 
-            {/* Monitor selector */}
-            {captureStatus.monitors && captureStatus.monitors.length > 1 && (
+            {/* Monitor selector - show when monitors are available */}
+            {captureStatus.monitors && captureStatus.monitors.length >= 1 && (
               <button
                 onClick={openMonitorPicker}
                 className="flex items-center gap-2 ml-auto px-3 py-2 rounded-lg bg-background/80 border border-input/50 hover:bg-muted/60 transition-all duration-200"
