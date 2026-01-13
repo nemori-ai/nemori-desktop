@@ -347,25 +347,49 @@ class LLMService:
     async def embed(
         self,
         texts: List[str],
-        model: Optional[str] = None
+        model: Optional[str] = None,
+        retries: int = MAX_RETRIES
     ) -> List[List[float]]:
-        """Generate embeddings for texts"""
+        """Generate embeddings for texts with retry logic"""
         if not self._embedding_client:
             raise ValueError("Embedding model not configured. Please set your Embedding API key.")
 
-        response = await self._embedding_client.embeddings.create(
-            model=model or self._embedding_model,
-            input=texts
-        )
+        last_error = None
+        delay = INITIAL_RETRY_DELAY
 
-        embeddings = [data.embedding for data in response.data]
+        for attempt in range(retries):
+            try:
+                response = await self._embedding_client.embeddings.create(
+                    model=model or self._embedding_model,
+                    input=texts
+                )
 
-        # Only truncate if dimension is explicitly configured (non-zero)
-        # Setting embedding_dimension to 0 means auto-adapt to model's native dimension
-        if self._embedding_dimension > 0 and len(embeddings[0]) > self._embedding_dimension:
-            embeddings = [emb[:self._embedding_dimension] for emb in embeddings]
+                embeddings = [data.embedding for data in response.data]
 
-        return embeddings
+                # Only truncate if dimension is explicitly configured (non-zero)
+                # Setting embedding_dimension to 0 means auto-adapt to model's native dimension
+                if self._embedding_dimension > 0 and len(embeddings[0]) > self._embedding_dimension:
+                    embeddings = [emb[:self._embedding_dimension] for emb in embeddings]
+
+                return embeddings
+
+            except Exception as e:
+                last_error = e
+                error_msg = str(e).lower()
+
+                # Don't retry on authentication errors
+                if "401" in error_msg or "unauthorized" in error_msg or "invalid api key" in error_msg:
+                    raise
+
+                # Retry on rate limits, timeouts, and network errors
+                if attempt < retries - 1:
+                    print(f"Embedding request failed (attempt {attempt + 1}/{retries}): {e}")
+                    await asyncio.sleep(delay)
+                    delay = min(delay * 2, MAX_RETRY_DELAY)
+                else:
+                    print(f"Embedding request failed after {retries} attempts: {e}")
+
+        raise last_error or ValueError("Embedding request failed")
 
     async def embed_single(self, text: str, model: Optional[str] = None) -> List[float]:
         """Generate embedding for a single text"""

@@ -477,25 +477,41 @@ Return your response in JSON format:
   "content": "..."
 }}"""
 
-        try:
-            if screenshot_images:
-                response = await self.llm.chat_with_images(
-                    prompt=prompt,
-                    image_urls=screenshot_images,
-                    temperature=0.7,
-                    response_format={"type": "json_object"}
-                )
-            else:
-                response = await self.llm.chat(
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.7,
-                    response_format={"type": "json_object"}
-                )
-            result = self.llm.parse_json_response(response)
-            return result if result else new_content
-        except Exception as e:
-            print(f"Error generating merged content: {e}")
-            return new_content
+        import asyncio
+        max_retries = 3
+        last_error = None
+
+        for attempt in range(max_retries):
+            try:
+                if screenshot_images:
+                    response = await self.llm.chat_with_images(
+                        prompt=prompt,
+                        image_urls=screenshot_images,
+                        temperature=0.7,
+                        response_format={"type": "json_object"}
+                    )
+                else:
+                    response = await self.llm.chat(
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0.7,
+                        response_format={"type": "json_object"}
+                    )
+                result = self.llm.parse_json_response(response)
+                if result and result.get('title') and result.get('content'):
+                    return result
+                else:
+                    raise ValueError("Invalid response format - missing title or content")
+
+            except Exception as e:
+                last_error = e
+                wait_time = 2 ** attempt
+                print(f"Error generating merged content (attempt {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    print(f"Retrying in {wait_time} seconds...")
+                    await asyncio.sleep(wait_time)
+
+        print(f"Failed to generate merged content after {max_retries} attempts: {last_error}")
+        return new_content
 
     async def generate_embedding(self, text: str) -> List[float]:
         """Generate embedding for text"""
