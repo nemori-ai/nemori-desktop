@@ -10,6 +10,8 @@ from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field
 
 from services.llm_service import LLMService
+from prompts import inject_language
+from prompts.summarization_prompts import get_summarization_prompt
 
 
 @dataclass
@@ -135,20 +137,13 @@ class SummarizationMiddleware:
         # Build summary prompt
         conversation_text = self._format_messages_for_summary(messages_to_summarize)
 
-        prompt = f"""Please summarize the following conversation, preserving:
-1. Key facts and information discussed
-2. User preferences and decisions made
-3. Important context that may be needed later
-4. Any tool calls and their results
-
-Keep the summary concise but comprehensive. Focus on information that would be useful for continuing the conversation.
-
-Previous summary (if any): {context.summary or 'None'}
-
-Conversation to summarize:
-{conversation_text}
-
-Provide a summary in 2-4 paragraphs:"""
+        # Get language from LLM service settings
+        language = getattr(self.llm, 'language', None)
+        prompt = get_summarization_prompt(
+            previous_summary=context.summary,
+            conversation_text=conversation_text
+        )
+        prompt = inject_language(prompt, language)
 
         try:
             summary = await self.llm.chat(

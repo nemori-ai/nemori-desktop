@@ -8,9 +8,12 @@ import SettingsPage from './pages/SettingsPage'
 import ScreenshotsPage from './pages/ScreenshotsPage'
 import VisualizationPage from './pages/VisualizationPage'
 import ProactivePage from './pages/ProactivePage'
+import { ThemeProvider, useTheme } from './contexts/ThemeContext'
+import { LanguageProvider } from './contexts/LanguageContext'
 
-function App(): JSX.Element {
+function AppContent(): JSX.Element {
   const navigate = useNavigate()
+  const { isDark } = useTheme()
 
   useEffect(() => {
     // Listen for navigation events from main process
@@ -22,9 +25,6 @@ function App(): JSX.Element {
       window.api.off('navigate', () => {})
     }
   }, [navigate])
-
-  // Detect system dark mode
-  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
 
   return (
     <ConfigProvider
@@ -40,21 +40,29 @@ function App(): JSX.Element {
         }
       }}
     >
-      <div className={isDark ? 'dark' : ''}>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<ChatPage />} />
-            <Route path="/chat" element={<ChatPage />} />
-            <Route path="/chat/:conversationId" element={<ChatPage />} />
-            <Route path="/memories" element={<MemoriesPage />} />
-            <Route path="/screenshots" element={<ScreenshotsPage />} />
-            <Route path="/insights" element={<VisualizationPage />} />
-            <Route path="/proactive" element={<ProactivePage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-          </Routes>
-        </Layout>
-      </div>
+      <Layout>
+        <Routes>
+          <Route path="/" element={<ChatPage />} />
+          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/chat/:conversationId" element={<ChatPage />} />
+          <Route path="/memories" element={<MemoriesPage />} />
+          <Route path="/screenshots" element={<ScreenshotsPage />} />
+          <Route path="/insights" element={<VisualizationPage />} />
+          <Route path="/proactive" element={<ProactivePage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Routes>
+      </Layout>
     </ConfigProvider>
+  )
+}
+
+function App(): JSX.Element {
+  return (
+    <ThemeProvider>
+      <LanguageProvider>
+        <AppContent />
+      </LanguageProvider>
+    </ThemeProvider>
   )
 }
 

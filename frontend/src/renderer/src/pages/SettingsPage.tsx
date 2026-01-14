@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Save, Check, AlertCircle, Loader2, Eye, EyeOff, ExternalLink, User, RefreshCw, Trash2 } from 'lucide-react'
+import { Save, Check, AlertCircle, Loader2, Eye, EyeOff, ExternalLink, User, RefreshCw, Trash2, Sun, Moon, Monitor, Globe } from 'lucide-react'
 import { api, AppSettings, LLMConfig, ProfileContext } from '../services/api'
+import { useTheme } from '../contexts/ThemeContext'
+import { useLanguage } from '../contexts/LanguageContext'
 
 export default function SettingsPage(): JSX.Element {
+  const { theme, setTheme } = useTheme()
+  const { language, setLanguage, t } = useLanguage()
   const [settings, setSettings] = useState<Record<string, string>>({})
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null)
   const [llmConfigured, setLlmConfigured] = useState(false)
@@ -224,6 +228,62 @@ export default function SettingsPage(): JSX.Element {
             Configure Nemori to work with your preferred AI provider
           </p>
         </div>
+
+        {/* Appearance */}
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">{t('settings.appearance')}</h2>
+          <div className="p-5 rounded-xl glass-card space-y-6">
+            {/* Theme */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium">{t('settings.theme')}</label>
+              <div className="flex gap-2">
+                <ThemeButton
+                  active={theme === 'light'}
+                  onClick={() => setTheme('light')}
+                  icon={<Sun className="w-4 h-4" />}
+                  label={t('settings.themeLight')}
+                />
+                <ThemeButton
+                  active={theme === 'dark'}
+                  onClick={() => setTheme('dark')}
+                  icon={<Moon className="w-4 h-4" />}
+                  label={t('settings.themeDark')}
+                />
+                <ThemeButton
+                  active={theme === 'system'}
+                  onClick={() => setTheme('system')}
+                  icon={<Monitor className="w-4 h-4" />}
+                  label={t('settings.themeSystem')}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {language === 'zh' ? '选择您喜欢的颜色主题。跟随系统将自动适应您的操作系统设置。' : 'Choose your preferred color theme. System will follow your OS settings.'}
+              </p>
+            </div>
+
+            {/* Language */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium">{t('settings.language')}</label>
+              <div className="flex gap-2">
+                <LanguageButton
+                  active={language === 'en'}
+                  onClick={() => setLanguage('en')}
+                  icon={<Globe className="w-4 h-4" />}
+                  label="English"
+                />
+                <LanguageButton
+                  active={language === 'zh'}
+                  onClick={() => setLanguage('zh')}
+                  icon={<Globe className="w-4 h-4" />}
+                  label="中文"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {language === 'zh' ? '选择界面语言。同时影响AI生成内容的语言。' : 'Choose the interface language. Also affects the language of AI generated content.'}
+              </p>
+            </div>
+          </div>
+        </section>
 
         {/* LLM Configuration */}
         <section className="space-y-4">
@@ -670,5 +730,57 @@ function InfoRow({ label, value }: { label: string; value: string }): JSX.Elemen
       <span className="text-sm text-muted-foreground">{label}</span>
       <span className="text-sm font-mono">{value}</span>
     </div>
+  )
+}
+
+function ThemeButton({
+  active,
+  onClick,
+  icon,
+  label
+}: {
+  active: boolean
+  onClick: () => void
+  icon: React.ReactNode
+  label: string
+}): JSX.Element {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all duration-200 ${
+        active
+          ? 'border-primary bg-primary/10 text-primary'
+          : 'border-border/50 bg-background/80 text-foreground hover:border-primary/50 hover:bg-primary/5'
+      }`}
+    >
+      {icon}
+      <span className="text-sm font-medium">{label}</span>
+    </button>
+  )
+}
+
+function LanguageButton({
+  active,
+  onClick,
+  icon,
+  label
+}: {
+  active: boolean
+  onClick: () => void
+  icon: React.ReactNode
+  label: string
+}): JSX.Element {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all duration-200 ${
+        active
+          ? 'border-primary bg-primary/10 text-primary'
+          : 'border-border/50 bg-background/80 text-foreground hover:border-primary/50 hover:bg-primary/5'
+      }`}
+    >
+      {icon}
+      <span className="text-sm font-medium">{label}</span>
+    </button>
   )
 }

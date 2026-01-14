@@ -13,18 +13,26 @@ import {
   BarChart2,
   Zap
 } from 'lucide-react'
+import { useLanguage } from '../contexts/LanguageContext'
+import { TranslationKey } from '../i18n'
 
 interface LayoutProps {
   children: ReactNode
 }
 
-const navItems = [
-  { path: '/chat', icon: MessageSquare, label: 'Chat' },
-  { path: '/memories', icon: Brain, label: 'Memories' },
-  { path: '/insights', icon: BarChart2, label: 'Insights' },
-  { path: '/proactive', icon: Zap, label: 'Agent' },
-  { path: '/screenshots', icon: Image, label: 'Screenshots' },
-  { path: '/settings', icon: Settings, label: 'Settings' }
+interface NavItem {
+  path: string
+  icon: typeof MessageSquare
+  labelKey: TranslationKey
+}
+
+const navItems: NavItem[] = [
+  { path: '/chat', icon: MessageSquare, labelKey: 'nav.chat' },
+  { path: '/memories', icon: Brain, labelKey: 'nav.memories' },
+  { path: '/insights', icon: BarChart2, labelKey: 'nav.insights' },
+  { path: '/proactive', icon: Zap, labelKey: 'nav.proactive' },
+  { path: '/screenshots', icon: Image, labelKey: 'nav.screenshots' },
+  { path: '/settings', icon: Settings, labelKey: 'nav.settings' }
 ]
 
 // Detect platform from user agent (renderer process doesn't have process.platform)
@@ -34,6 +42,7 @@ export default function Layout({ children }: LayoutProps): JSX.Element {
   const navigate = useNavigate()
   const location = useLocation()
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const { t } = useLanguage()
 
   const handleMinimize = (): void => {
     window.api.window.minimize()
@@ -105,7 +114,7 @@ export default function Layout({ children }: LayoutProps): JSX.Element {
                 }`}
               >
                 <Icon className="w-5 h-5 flex-shrink-0" />
-                {!isCollapsed && <span className="text-sm font-medium">{item.label}</span>}
+                {!isCollapsed && <span className="text-sm font-medium">{t(item.labelKey)}</span>}
               </button>
             )
           })}

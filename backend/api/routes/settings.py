@@ -94,6 +94,46 @@ async def update_app_settings(update: AppSettingsUpdate):
     return {"success": True}
 
 
+# ==================== Language Settings ====================
+# NOTE: These routes MUST be defined BEFORE the generic /{key} routes
+# to avoid being caught by the wildcard pattern
+
+class LanguageUpdate(BaseModel):
+    language: str  # 'en' or 'zh'
+
+
+@router.get("/language")
+async def get_language():
+    """Get current language setting"""
+    db = Database.get_instance()
+    language = await db.get_setting("language")
+    llm = LLMService.get_instance()
+    return {
+        "language": language or llm.language or "en",
+        "supported": ["en", "zh"]
+    }
+
+
+@router.put("/language")
+async def set_language(update: LanguageUpdate):
+    """Set language for UI and prompt injection"""
+    from prompts.language import is_language_supported
+
+    if not is_language_supported(update.language):
+        return {"success": False, "error": f"Unsupported language: {update.language}"}
+
+    db = Database.get_instance()
+    await db.set_setting("language", update.language)
+
+    # Update LLM service
+    llm = LLMService.get_instance()
+    llm.set_language(update.language)
+
+    return {"success": True, "language": update.language}
+
+
+# ==================== Generic Setting Routes ====================
+
 @router.get("/{key}")
 async def get_setting(key: str):
     """Get a specific setting"""

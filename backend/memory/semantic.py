@@ -13,18 +13,12 @@ from typing import Optional, List, Dict, Any
 from storage.database import Database
 from storage.vector_store import VectorStore
 from services.llm_service import LLMService
-
-# 8 life categories for semantic memories
-SEMANTIC_CATEGORIES = {
-    'career': '事业/工作 - Career goals, work projects, professional skills, job experiences',
-    'finance': '财务/金钱 - Financial goals, investments, spending habits, income sources',
-    'health': '健康/身体 - Physical health, exercise, diet, medical conditions, sleep',
-    'family': '家庭/亲密关系 - Family members, romantic relationships, home life',
-    'social': '社交/朋友 - Friendships, social activities, networking, community',
-    'growth': '学习/个人成长 - Learning, education, self-improvement, skills development',
-    'leisure': '娱乐/休闲 - Hobbies, entertainment, travel, relaxation activities',
-    'spirit': '心灵/精神 - Mental health, meditation, values, life philosophy, emotions'
-}
+from prompts import SEMANTIC_CATEGORIES, inject_language
+from prompts.semantic_prompts import (
+    get_consolidation_decision_prompt,
+    get_reconstruction_prompt,
+    get_calibration_prompt,
+)
 
 
 class SemanticExtractor:
@@ -192,30 +186,14 @@ Content: "{c['content']}"
             for i, c in enumerate(candidates)
         ])
 
-        prompt = f"""You are a Knowledge Base Administrator responsible for maintaining a clean and accurate set of semantic memories about a user.
-
-A new semantic item has been extracted. You must decide how to integrate it into the knowledge base.
-
-**New Item:**
-- Type: {new_item['type']}
-- Content: "{new_item['content']}"
-
-**Existing Similar Items:**
-{candidates_summary}
-
-**Your Task:**
-Choose ONE of the following actions:
-
-1. **NEW**: If the new item is a completely new concept that doesn't overlap with existing items.
-2. **MERGE**: If the new item and an existing item are semantically identical but phrased differently.
-3. **CONFLICT_DELETE**: If the new item directly contradicts or makes an existing item obsolete.
-
-**Response Format (JSON):**
-- For NEW: {{"decision": "NEW", "reason": "..."}}
-- For MERGE: {{"decision": "MERGE", "target_ids": ["id"], "new_content": "canonical version", "reason": "..."}}
-- For CONFLICT_DELETE: {{"decision": "CONFLICT_DELETE", "target_ids": ["id"], "reason": "..."}}
-
-Provide only the JSON response."""
+        # Get language from LLM service settings
+        language = getattr(self.llm, 'language', None)
+        prompt = get_consolidation_decision_prompt(
+            new_item_type=new_item['type'],
+            new_item_content=new_item['content'],
+            candidates_summary=candidates_summary
+        )
+        prompt = inject_language(prompt, language)
 
         try:
             response = await self.llm.chat(
@@ -270,20 +248,10 @@ Provide only the JSON response."""
             for i, m in enumerate(similar)
         ]) or 'None'
 
-        prompt = f"""You are a semantic memory agent. Given a short session summary and similar past semantic memories, reconstruct what likely happened in detail.
-
-Summary:
-{summary}
-
-Similar semantic memories:
-{similar_context}
-
-Based on the summary, reconstruct what the user was doing in detail. Focus on:
-- What specific content was being viewed/accessed
-- What actions the user took
-- What the user's goals or interests might have been
-
-Return JSON: {{"reconstructed_details": "detailed description (max 300 words)"}}"""
+        # Get language from LLM service settings
+        language = getattr(self.llm, 'language', None)
+        prompt = get_reconstruction_prompt(summary=summary, similar_context=similar_context)
+        prompt = inject_language(prompt, language)
 
         try:
             response = await self.llm.chat(
@@ -320,39 +288,14 @@ Return JSON: {{"reconstructed_details": "detailed description (max 300 words)"}}
 
         categories_desc = "\n".join([f"- **{k}**: {v}" for k, v in SEMANTIC_CATEGORIES.items()])
 
-        prompt = f"""You are a life insights extraction agent. Analyze the session and extract meaningful, lasting insights about the user into 8 life categories.
-
-**8 Life Categories:**
-{categories_desc}
-
-**Session Context:**
-{reconstructed}
-
-**Original Events:**
-{chr(10).join(compact)}
-
-**Guidelines:**
-1. Each insight must be self-contained and meaningful on its own
-2. Focus on lasting facts, preferences, goals, or habits - avoid transient details
-3. Write from the user's perspective (e.g., "User prefers...", "User is working on...")
-4. Only extract if there's clear evidence in the session
-5. It's OK to leave categories empty if no relevant insights are found
-
-**Good Examples:**
-- career: "User is developing a personal AI assistant app called Nemori"
-- health: "User exercises in the morning before work"
-- growth: "User is learning about memory systems and embeddings"
-- leisure: "User enjoys watching tech YouTube videos"
-
-**Bad Examples (DO NOT extract):**
-- "User clicked a button" (too specific, not lasting)
-- "The document has 10 pages" (not about the user)
-- "User is typing" (transient action)
-
-Return JSON with arrays for each category (empty arrays are fine):
-{{"career": [...], "finance": [...], "health": [...], "family": [...], "social": [...], "growth": [...], "leisure": [...], "spirit": [...]}}
-
-Maximum 2 items per category, 8 items total."""
+        # Get language from LLM service settings
+        language = getattr(self.llm, 'language', None)
+        prompt = get_calibration_prompt(
+            categories_desc=categories_desc,
+            reconstructed=reconstructed,
+            compact_events=chr(10).join(compact)
+        )
+        prompt = inject_language(prompt, language)
 
         try:
             response = await self.llm.chat(

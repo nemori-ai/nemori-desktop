@@ -5,25 +5,27 @@ import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight
 } from 'lucide-react'
 import { api, EpisodicMemory, SemanticMemory, Memory, SemanticCategory } from '../services/api'
+import { useLanguage } from '../contexts/LanguageContext'
 
 type TabType = 'episodic' | 'semantic' | 'search'
 
 // Pagination config
 const PAGE_SIZE = 10
 
-// 8 life categories configuration
-const CATEGORY_CONFIG: Record<SemanticCategory, { label: string; icon: React.ReactNode; color: string }> = {
-  career: { label: '事业/工作', icon: <Briefcase className="w-4 h-4" />, color: 'bg-blue-100 text-blue-600' },
-  finance: { label: '财务/金钱', icon: <DollarSign className="w-4 h-4" />, color: 'bg-green-100 text-green-600' },
-  health: { label: '健康/身体', icon: <HeartPulse className="w-4 h-4" />, color: 'bg-red-100 text-red-600' },
-  family: { label: '家庭/亲密关系', icon: <Home className="w-4 h-4" />, color: 'bg-pink-100 text-pink-600' },
-  social: { label: '社交/朋友', icon: <Users className="w-4 h-4" />, color: 'bg-orange-100 text-orange-600' },
-  growth: { label: '学习/成长', icon: <GraduationCap className="w-4 h-4" />, color: 'bg-purple-100 text-purple-600' },
-  leisure: { label: '娱乐/休闲', icon: <Gamepad2 className="w-4 h-4" />, color: 'bg-yellow-100 text-yellow-600' },
-  spirit: { label: '心灵/精神', icon: <Sparkles className="w-4 h-4" />, color: 'bg-indigo-100 text-indigo-600' }
+// 8 life categories configuration with bilingual labels
+const CATEGORY_CONFIG: Record<SemanticCategory, { labelEn: string; labelZh: string; icon: React.ReactNode; color: string }> = {
+  career: { labelEn: 'Career', labelZh: '事业/工作', icon: <Briefcase className="w-4 h-4" />, color: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' },
+  finance: { labelEn: 'Finance', labelZh: '财务/金钱', icon: <DollarSign className="w-4 h-4" />, color: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' },
+  health: { labelEn: 'Health', labelZh: '健康/身体', icon: <HeartPulse className="w-4 h-4" />, color: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' },
+  family: { labelEn: 'Family', labelZh: '家庭/亲密关系', icon: <Home className="w-4 h-4" />, color: 'bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400' },
+  social: { labelEn: 'Social', labelZh: '社交/朋友', icon: <Users className="w-4 h-4" />, color: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' },
+  growth: { labelEn: 'Growth', labelZh: '学习/成长', icon: <GraduationCap className="w-4 h-4" />, color: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' },
+  leisure: { labelEn: 'Leisure', labelZh: '娱乐/休闲', icon: <Gamepad2 className="w-4 h-4" />, color: 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400' },
+  spirit: { labelEn: 'Spirit', labelZh: '心灵/精神', icon: <Sparkles className="w-4 h-4" />, color: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400' }
 }
 
 export default function MemoriesPage(): JSX.Element {
+  const { t, language } = useLanguage()
   const [activeTab, setActiveTab] = useState<TabType>('episodic')
   const [episodicMemories, setEpisodicMemories] = useState<EpisodicMemory[]>([])
   const [semanticMemories, setSemanticMemories] = useState<SemanticMemory[]>([])
@@ -81,7 +83,6 @@ export default function MemoriesPage(): JSX.Element {
   const loadSemanticMemories = async (page: number): Promise<void> => {
     setIsLoading(true)
     try {
-      const offset = (page - 1) * PAGE_SIZE
       // Note: semantic API might need offset support in backend
       const { memories } = await api.getSemanticMemories(
         semanticFilter === 'all' ? undefined : semanticFilter,
@@ -228,8 +229,8 @@ export default function MemoriesPage(): JSX.Element {
               ) : episodicMemories.length === 0 ? (
                 <EmptyState
                   icon={<Calendar className="w-12 h-12" />}
-                  title="No episodic memories yet"
-                  description="Your memories from conversations and activities will appear here."
+                  title={t('memories.noEpisodic')}
+                  description={t('memories.noEpisodicDesc')}
                 />
               ) : (
                 episodicMemories.map((memory) => (
@@ -267,7 +268,7 @@ export default function MemoriesPage(): JSX.Element {
                   key={cat}
                   active={semanticFilter === cat}
                   onClick={() => handleSemanticFilterChange(cat)}
-                  label={CATEGORY_CONFIG[cat].label}
+                  label={language === 'zh' ? CATEGORY_CONFIG[cat].labelZh : CATEGORY_CONFIG[cat].labelEn}
                   icon={CATEGORY_CONFIG[cat].icon}
                 />
               ))}
@@ -279,8 +280,8 @@ export default function MemoriesPage(): JSX.Element {
               ) : filteredSemanticMemories.length === 0 ? (
                 <EmptyState
                   icon={<Brain className="w-12 h-12" />}
-                  title="No semantic memories yet"
-                  description="Facts and preferences extracted from your conversations will appear here."
+                  title={t('memories.noSemantic')}
+                  description={t('memories.noSemanticDesc')}
                 />
               ) : (
                 filteredSemanticMemories.map((memory) => (
@@ -304,8 +305,8 @@ export default function MemoriesPage(): JSX.Element {
             {searchResults.length === 0 ? (
               <EmptyState
                 icon={<Search className="w-12 h-12" />}
-                title="No results found"
-                description="Try searching with different keywords."
+                title={t('memories.noResults')}
+                description={t('memories.noResultsDesc')}
               />
             ) : (
               searchResults.map((memory) => (
@@ -562,22 +563,24 @@ function SemanticMemoryCard({
   memory: SemanticMemory
   formatDate: (t: number) => string
 }): JSX.Element {
-  const config = CATEGORY_CONFIG[memory.type] || {
-    label: memory.type,
-    icon: <Brain className="w-4 h-4" />,
-    color: 'bg-muted text-muted-foreground'
-  }
+  const { language } = useLanguage()
+  const categoryConfig = CATEGORY_CONFIG[memory.type]
+  const label = categoryConfig
+    ? (language === 'zh' ? categoryConfig.labelZh : categoryConfig.labelEn)
+    : memory.type
+  const icon = categoryConfig?.icon || <Brain className="w-4 h-4" />
+  const color = categoryConfig?.color || 'bg-muted text-muted-foreground'
 
   return (
     <div className="flex items-start gap-3 p-4 rounded-lg glass-card hover:shadow-warm-sm transition-all duration-200">
       <div
-        className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${config.color}`}
+        className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${color}`}
       >
-        {config.icon}
+        {icon}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-medium text-muted-foreground">{config.label}</span>
+          <span className="text-xs font-medium text-muted-foreground">{label}</span>
         </div>
         <p className="text-sm text-foreground">{memory.content}</p>
         <div className="flex items-center gap-2 mt-1">

@@ -36,6 +36,9 @@ class LLMService:
         self._embedding_model: str = "google/gemini-embedding-001"
         self._embedding_dimension: int = settings.embedding_dimension
 
+        # Language configuration for prompt injection
+        self._language: str = "en"  # Default to English
+
     @classmethod
     def get_instance(cls) -> "LLMService":
         if cls._instance is None:
@@ -101,10 +104,15 @@ class LLMService:
         if embedding_model:
             self._embedding_model = embedding_model
 
+        # Load language setting
+        language = await db.get_setting("language")
+        if language:
+            self._language = language
+
         # Reinitialize clients with loaded settings
         self._init_clients()
 
-        print(f"LLM service loaded from database. Chat configured: {self.is_chat_configured()}, Embedding configured: {self.is_embedding_configured()}")
+        print(f"LLM service loaded from database. Chat configured: {self.is_chat_configured()}, Embedding configured: {self.is_embedding_configured()}, Language: {self._language}")
 
     def _init_clients(self) -> None:
         """Initialize OpenAI clients for chat and embedding"""
@@ -153,6 +161,15 @@ class LLMService:
     def base_url(self) -> str:
         """Get the current chat base URL"""
         return self._chat_base_url
+
+    @property
+    def language(self) -> str:
+        """Get the current language setting"""
+        return self._language
+
+    def set_language(self, language: str) -> None:
+        """Set language for prompt injection"""
+        self._language = language
 
     # Chat model setters
     def set_chat_api_key(self, api_key: str) -> None:

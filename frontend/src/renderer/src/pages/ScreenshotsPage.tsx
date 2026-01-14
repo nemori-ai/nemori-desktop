@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Camera, CameraOff, Trash2, RefreshCw, X, Monitor, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Calendar } from 'lucide-react'
 import { api, Screenshot, CaptureStatus } from '../services/api'
 import { formatDateDisplay, getTodayDateStr } from '../utils/file'
+import { useLanguage } from '../contexts/LanguageContext'
 
 // Cache for blob URLs to avoid re-fetching
 const blobUrlCache = new Map<string, string>()
@@ -10,6 +11,7 @@ const blobUrlCache = new Map<string, string>()
 const PAGE_SIZE = 20
 
 export default function ScreenshotsPage(): JSX.Element {
+  const { t } = useLanguage()
   const [screenshots, setScreenshots] = useState<Screenshot[]>([])
   const [captureStatus, setCaptureStatus] = useState<CaptureStatus | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -248,9 +250,9 @@ export default function ScreenshotsPage(): JSX.Element {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Screenshots</h1>
+          <h1 className="text-2xl font-bold">{t('screenshots.title')}</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Capture and manage screen activity
+            {t('screenshots.subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -266,7 +268,7 @@ export default function ScreenshotsPage(): JSX.Element {
             className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-muted/60 hover:bg-muted transition-all duration-200 shadow-warm-sm"
           >
             <Camera className="w-4 h-4" />
-            <span>Capture Now</span>
+            <span>{t('screenshots.captureNow')}</span>
           </button>
           <button
             onClick={handleToggleCapture}
@@ -279,12 +281,12 @@ export default function ScreenshotsPage(): JSX.Element {
             {captureStatus?.is_capturing ? (
               <>
                 <CameraOff className="w-4 h-4" />
-                <span>Stop</span>
+                <span>{t('screenshots.stop')}</span>
               </>
             ) : (
               <>
                 <Camera className="w-4 h-4" />
-                <span>Start</span>
+                <span>{t('screenshots.start')}</span>
               </>
             )}
           </button>
@@ -299,9 +301,9 @@ export default function ScreenshotsPage(): JSX.Element {
               <CameraOff className="w-4 h-4 text-destructive" />
             </div>
             <div>
-              <p className="text-sm font-medium text-destructive">Screen Recording Permission Required</p>
+              <p className="text-sm font-medium text-destructive">{t('screenshots.permissionRequired')}</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Please enable screen recording permission for Nemori in System Settings.
+                {t('screenshots.permissionDesc')}
               </p>
             </div>
           </div>
@@ -310,7 +312,7 @@ export default function ScreenshotsPage(): JSX.Element {
               onClick={() => api.openScreenshotPermissionSettings()}
               className="px-3 py-1.5 text-sm rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
             >
-              Open Settings
+              {t('screenshots.openSettings')}
             </button>
             <button
               onClick={() => setPermissionError(null)}
@@ -358,11 +360,11 @@ export default function ScreenshotsPage(): JSX.Element {
                 }`}
               />
               <span className="text-sm">
-                {captureStatus.is_capturing ? 'Capturing' : 'Stopped'}
+                {captureStatus.is_capturing ? t('screenshots.capturing') : t('screenshots.stopped')}
               </span>
             </div>
             <span className="text-sm text-muted-foreground">
-              {totalCount} screenshots
+              {totalCount} {t('screenshots.screenshots')}
             </span>
 
             {/* Monitor selector - show when monitors are available */}
@@ -374,7 +376,7 @@ export default function ScreenshotsPage(): JSX.Element {
                 <Monitor className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm">
                   {captureStatus.monitors.find((m) => m.id === captureStatus.selected_monitor)?.name ||
-                    'Select Screen'}
+                    t('screenshots.selectScreen')}
                 </span>
               </button>
             )}
@@ -392,8 +394,8 @@ export default function ScreenshotsPage(): JSX.Element {
           ) : screenshots.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
               <Camera className="w-16 h-16 mb-4 opacity-50" />
-              <h2 className="text-xl font-semibold mb-2">No screenshots</h2>
-              <p className="text-sm">No screenshots for {formatDateDisplay(selectedDate)}</p>
+              <h2 className="text-xl font-semibold mb-2">{t('screenshots.noScreenshots')}</h2>
+              <p className="text-sm">{t('screenshots.noScreenshotsFor')} {formatDateDisplay(selectedDate)}</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -452,8 +454,9 @@ function ScreenshotCard({
   screenshot: Screenshot
   onClick: () => void
   onDelete: () => void
-  formatTime: (t: number) => string
+  formatTime: (ts: number) => string
 }): JSX.Element {
+  const { t } = useLanguage()
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const cardRef = useRef<HTMLDivElement>(null)
@@ -522,7 +525,7 @@ function ScreenshotCard({
         )}
       </div>
       <div className="p-2">
-        <p className="text-xs font-medium truncate">{screenshot.window_title || 'Unknown'}</p>
+        <p className="text-xs font-medium truncate">{screenshot.window_title || t('screenshots.unknown')}</p>
         <p className="text-xs text-muted-foreground">{formatTime(screenshot.timestamp)}</p>
       </div>
       <button
@@ -546,6 +549,7 @@ function ImageViewerModal({
   screenshot: Screenshot
   onClose: () => void
 }): JSX.Element {
+  const { t } = useLanguage()
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -612,7 +616,7 @@ function ImageViewerModal({
           </div>
         )}
         <div className="p-4 border-t border-border/50 bg-background/50">
-          <p className="text-sm font-medium">{screenshot.window_title || 'Unknown'}</p>
+          <p className="text-sm font-medium">{screenshot.window_title || t('screenshots.unknown')}</p>
           <p className="text-xs text-muted-foreground mt-1">
             {formatDateTime(screenshot.timestamp)}
           </p>
@@ -635,6 +639,7 @@ function Pagination({
   totalPages: number
   onPageChange: (page: number) => void
 }): JSX.Element {
+  const { t } = useLanguage()
   const getVisiblePages = (): (number | string)[] => {
     const pages: (number | string)[] = []
     const maxVisible = 5
@@ -677,7 +682,7 @@ function Pagination({
         onClick={() => onPageChange(1)}
         disabled={currentPage === 1}
         className="p-2 rounded-lg hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-        title="First page"
+        title={t('screenshots.firstPage')}
       >
         <ChevronsLeft className="w-4 h-4" />
       </button>
@@ -686,7 +691,7 @@ function Pagination({
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
         className="p-2 rounded-lg hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-        title="Previous page"
+        title={t('screenshots.previousPage')}
       >
         <ChevronLeft className="w-4 h-4" />
       </button>
@@ -717,7 +722,7 @@ function Pagination({
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
         className="p-2 rounded-lg hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-        title="Next page"
+        title={t('screenshots.nextPage')}
       >
         <ChevronRight className="w-4 h-4" />
       </button>
@@ -726,13 +731,13 @@ function Pagination({
         onClick={() => onPageChange(totalPages)}
         disabled={currentPage === totalPages}
         className="p-2 rounded-lg hover:bg-muted/60 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-        title="Last page"
+        title={t('screenshots.lastPage')}
       >
         <ChevronsRight className="w-4 h-4" />
       </button>
 
       <span className="ml-4 text-sm text-muted-foreground">
-        Page {currentPage} of {totalPages}
+        {t('screenshots.page')} {currentPage} {t('screenshots.of')} {totalPages}
       </span>
     </div>
   )
@@ -752,6 +757,7 @@ function MonitorPickerModal({
   onSelect: (ids: number[]) => void
   onClose: () => void
 }): JSX.Element {
+  const { t } = useLanguage()
   // Track selected monitors (initialize with currently selected)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(() => {
     const initial = new Set<number>()
@@ -800,9 +806,9 @@ function MonitorPickerModal({
       >
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-bold">Select Screens to Capture</h2>
+            <h2 className="text-xl font-bold">{t('screenshots.selectScreensToCapture')}</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Each screen will be captured independently with its own deduplication
+              {t('screenshots.selectScreensDesc')}
             </p>
           </div>
           <button
@@ -819,23 +825,23 @@ function MonitorPickerModal({
             onClick={selectAll}
             className="px-3 py-1.5 text-sm rounded-lg bg-muted/60 hover:bg-muted transition-all"
           >
-            Select All
+            {t('screenshots.selectAll')}
           </button>
           <button
             onClick={selectNone}
             className="px-3 py-1.5 text-sm rounded-lg bg-muted/60 hover:bg-muted transition-all"
           >
-            Deselect All
+            {t('screenshots.deselectAll')}
           </button>
           <span className="text-sm text-muted-foreground ml-2">
-            {selectedIds.size} selected
+            {selectedIds.size} {t('screenshots.selected')}
           </span>
         </div>
 
         {loadingPreviews ? (
           <div className="flex items-center justify-center py-12">
             <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
-            <span className="ml-3 text-muted-foreground">Loading previews...</span>
+            <span className="ml-3 text-muted-foreground">{t('screenshots.loadingPreviews')}</span>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -891,14 +897,14 @@ function MonitorPickerModal({
             onClick={onClose}
             className="px-4 py-2 text-sm rounded-lg hover:bg-muted/60 transition-all mr-2"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleConfirm}
             disabled={selectedIds.size === 0}
             className="px-4 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
-            Confirm Selection
+            {t('screenshots.confirmSelection')}
           </button>
         </div>
       </div>

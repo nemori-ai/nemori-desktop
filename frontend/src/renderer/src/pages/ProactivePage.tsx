@@ -34,24 +34,25 @@ import {
   ProfileSummaryResponse,
   ProfileFileResponse
 } from '../services/api'
+import { useLanguage } from '../contexts/LanguageContext'
 
 type AgentState = 'sleeping' | 'waking_up' | 'awake' | 'working' | 'going_to_sleep'
 
-const stateConfig: Record<AgentState, { label: string; color: string; icon: typeof Sun }> = {
-  sleeping: { label: 'Sleeping', color: 'text-blue-500 bg-blue-500/10', icon: Moon },
-  waking_up: { label: 'Waking Up', color: 'text-amber-500 bg-amber-500/10', icon: Loader2 },
-  awake: { label: 'Awake', color: 'text-green-500 bg-green-500/10', icon: Sun },
-  working: { label: 'Working', color: 'text-purple-500 bg-purple-500/10', icon: Zap },
-  going_to_sleep: { label: 'Going to Sleep', color: 'text-blue-400 bg-blue-400/10', icon: Moon }
+const stateConfig: Record<AgentState, { labelKey: string; color: string; icon: typeof Sun }> = {
+  sleeping: { labelKey: 'proactive.state.sleeping', color: 'text-blue-500 bg-blue-500/10', icon: Moon },
+  waking_up: { labelKey: 'proactive.state.wakingUp', color: 'text-amber-500 bg-amber-500/10', icon: Loader2 },
+  awake: { labelKey: 'proactive.state.awake', color: 'text-green-500 bg-green-500/10', icon: Sun },
+  working: { labelKey: 'proactive.state.working', color: 'text-purple-500 bg-purple-500/10', icon: Zap },
+  going_to_sleep: { labelKey: 'proactive.state.goingToSleep', color: 'text-blue-400 bg-blue-400/10', icon: Moon }
 }
 
-const taskStatusConfig: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
-  pending: { label: 'Pending', color: 'text-gray-500', icon: Clock },
-  scheduled: { label: 'Scheduled', color: 'text-blue-500', icon: Calendar },
-  in_progress: { label: 'Running', color: 'text-purple-500', icon: Loader2 },
-  completed: { label: 'Completed', color: 'text-green-500', icon: CheckCircle2 },
-  failed: { label: 'Failed', color: 'text-red-500', icon: XCircle },
-  cancelled: { label: 'Cancelled', color: 'text-gray-400', icon: XCircle }
+const taskStatusConfig: Record<string, { labelKey: string; color: string; icon: typeof CheckCircle2 }> = {
+  pending: { labelKey: 'proactive.taskStatus.pending', color: 'text-gray-500', icon: Clock },
+  scheduled: { labelKey: 'proactive.taskStatus.scheduled', color: 'text-blue-500', icon: Calendar },
+  in_progress: { labelKey: 'proactive.taskStatus.inProgress', color: 'text-purple-500', icon: Loader2 },
+  completed: { labelKey: 'proactive.taskStatus.completed', color: 'text-green-500', icon: CheckCircle2 },
+  failed: { labelKey: 'proactive.taskStatus.failed', color: 'text-red-500', icon: XCircle },
+  cancelled: { labelKey: 'proactive.taskStatus.cancelled', color: 'text-gray-400', icon: XCircle }
 }
 
 /**
@@ -64,6 +65,7 @@ const stripFrontMatter = (content: string): string => {
 }
 
 export default function ProactivePage(): JSX.Element {
+  const { t } = useLanguage()
   const [status, setStatus] = useState<ProactiveAgentStatus | null>(null)
   const [tasks, setTasks] = useState<ProactiveTask[]>([])
   const [taskHistory, setTaskHistory] = useState<ProactiveTask[]>([])
@@ -192,7 +194,7 @@ export default function ProactivePage(): JSX.Element {
 
   const handleDeleteHistory = async (taskId: string, e: React.MouseEvent): Promise<void> => {
     e.stopPropagation() // Prevent opening task detail modal
-    if (!confirm('确定要删除这条历史记录吗？')) return
+    if (!confirm(t('proactive.confirmDeleteHistory'))) return
 
     try {
       await api.deleteProactiveTaskHistory(taskId)
@@ -235,9 +237,9 @@ export default function ProactivePage(): JSX.Element {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Proactive Agent</h1>
+            <h1 className="text-2xl font-bold">{t('proactive.title')}</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Autonomous agent that learns and updates your profile
+              {t('proactive.subtitle')}
             </p>
           </div>
           <button
@@ -255,7 +257,7 @@ export default function ProactivePage(): JSX.Element {
             <AlertCircle className="w-5 h-5" />
             <span className="text-sm">{error}</span>
             <button onClick={() => setError(null)} className="ml-auto text-sm hover:underline">
-              Dismiss
+              {t('proactive.dismiss')}
             </button>
           </div>
         )}
@@ -268,9 +270,9 @@ export default function ProactivePage(): JSX.Element {
                 <StateIcon className={`w-6 h-6 ${agentState === 'waking_up' || agentState === 'working' ? 'animate-spin' : ''}`} />
               </div>
               <div>
-                <h2 className="text-lg font-semibold">{stateInfo.label}</h2>
+                <h2 className="text-lg font-semibold">{t(stateInfo.labelKey as any)}</h2>
                 <p className="text-sm text-muted-foreground">
-                  {status?.agent?.tasks_completed_today || 0} tasks completed today
+                  {status?.agent?.tasks_completed_today || 0} {t('proactive.tasksCompletedToday')}
                 </p>
               </div>
             </div>
@@ -282,7 +284,7 @@ export default function ProactivePage(): JSX.Element {
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
                 >
                   {isActionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sun className="w-4 h-4" />}
-                  Wake Up
+                  {t('proactive.wakeUp')}
                 </button>
               ) : (
                 <button
@@ -291,7 +293,7 @@ export default function ProactivePage(): JSX.Element {
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted hover:bg-muted/80 disabled:opacity-50 transition-colors"
                 >
                   {isActionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Moon className="w-4 h-4" />}
-                  Sleep
+                  {t('proactive.sleep')}
                 </button>
               )}
               {!status && (
@@ -301,7 +303,7 @@ export default function ProactivePage(): JSX.Element {
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
                 >
                   {isActionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                  Start Agent
+                  {t('proactive.startAgent')}
                 </button>
               )}
             </div>
@@ -311,15 +313,15 @@ export default function ProactivePage(): JSX.Element {
           <div className="grid grid-cols-3 gap-4">
             <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
               <p className="text-2xl font-bold text-primary">{status?.scheduler?.tasks_in_queue || 0}</p>
-              <p className="text-xs text-muted-foreground">Tasks in Queue</p>
+              <p className="text-xs text-muted-foreground">{t('proactive.tasksInQueue')}</p>
             </div>
             <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
               <p className="text-2xl font-bold text-primary">{profileFiles?.total_files || 0}</p>
-              <p className="text-xs text-muted-foreground">Profile Files</p>
+              <p className="text-xs text-muted-foreground">{t('proactive.profileFiles')}</p>
             </div>
             <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
               <p className="text-2xl font-bold text-primary">{status?.wakeup?.enabled_triggers || 0}</p>
-              <p className="text-xs text-muted-foreground">Active Triggers</p>
+              <p className="text-xs text-muted-foreground">{t('proactive.activeTriggers')}</p>
             </div>
           </div>
         </div>
@@ -327,9 +329,9 @@ export default function ProactivePage(): JSX.Element {
         {/* Tab Navigation */}
         <div className="flex gap-2 p-1 rounded-xl bg-muted/30">
           {[
-            { id: 'status', label: 'Status', icon: Zap },
-            { id: 'tasks', label: 'Tasks', icon: ListTodo },
-            { id: 'profile', label: 'Profile', icon: User }
+            { id: 'status', labelKey: 'proactive.statusTab', icon: Zap },
+            { id: 'tasks', labelKey: 'proactive.tasksTab', icon: ListTodo },
+            { id: 'profile', labelKey: 'proactive.profileTab', icon: User }
           ].map((tab) => {
             const TabIcon = tab.icon
             return (
@@ -343,7 +345,7 @@ export default function ProactivePage(): JSX.Element {
                 }`}
               >
                 <TabIcon className="w-4 h-4" />
-                {tab.label}
+                {t(tab.labelKey as any)}
               </button>
             )
           })}
@@ -355,7 +357,7 @@ export default function ProactivePage(): JSX.Element {
             {/* Next Actions */}
             <div className="p-5 rounded-xl glass-card">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">
-                Next Scheduled Actions
+                {t('proactive.nextScheduledActions')}
               </h3>
               <div className="space-y-3">
                 {status?.wakeup?.next_trigger && (
@@ -368,7 +370,7 @@ export default function ProactivePage(): JSX.Element {
                       </div>
                     </div>
                     <span className="text-sm text-muted-foreground">
-                      {status.wakeup.next_trigger.time_until || 'Soon'}
+                      {status.wakeup.next_trigger.time_until || t('proactive.soon')}
                     </span>
                   </div>
                 )}
@@ -382,12 +384,12 @@ export default function ProactivePage(): JSX.Element {
                       </div>
                     </div>
                     <span className="text-sm text-muted-foreground">
-                      Priority: {status.scheduler.next_task.priority}
+                      {t('proactive.priority')}: {status.scheduler.next_task.priority}
                     </span>
                   </div>
                 )}
                 {!status?.wakeup?.next_trigger && !status?.scheduler?.next_task && (
-                  <p className="text-sm text-muted-foreground text-center py-4">No scheduled actions</p>
+                  <p className="text-sm text-muted-foreground text-center py-4">{t('proactive.noScheduledActions')}</p>
                 )}
               </div>
             </div>
@@ -396,7 +398,7 @@ export default function ProactivePage(): JSX.Element {
             {status?.agent?.recent_transitions && status.agent.recent_transitions.length > 0 && (
               <div className="p-5 rounded-xl glass-card">
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">
-                  Recent Activity
+                  {t('proactive.recentActivity')}
                 </h3>
                 <div className="space-y-2">
                   {status.agent.recent_transitions.slice(-5).reverse().map((t, i) => (
@@ -415,48 +417,48 @@ export default function ProactivePage(): JSX.Element {
             {/* Quick Actions */}
             <div className="p-5 rounded-xl glass-card">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">
-                Quick Actions
+                {t('proactive.quickActions')}
               </h3>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => handleRunTask('self_reflection')}
                   disabled={isActionLoading || agentState === 'sleeping'}
-                  className="flex items-center gap-2 p-3 rounded-lg bg-primary/20 hover:bg-primary/30 disabled:opacity-50 transition-colors border border-primary/30"
+                  className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 dark:bg-primary/20 hover:bg-primary/20 dark:hover:bg-primary/30 disabled:opacity-50 transition-colors border border-primary/20 dark:border-primary/40"
                 >
                   <User className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium">Self Reflection</span>
+                  <span className="text-sm font-medium text-foreground">{t('proactive.selfReflection')}</span>
                 </button>
                 <button
                   onClick={() => handleRunTask('learn_from_history')}
                   disabled={isActionLoading || agentState === 'sleeping'}
-                  className="flex items-center gap-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 disabled:opacity-50 transition-colors"
+                  className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 dark:bg-muted/30 hover:bg-muted/70 dark:hover:bg-muted/50 disabled:opacity-50 transition-colors border border-border/50"
                 >
                   <Zap className="w-4 h-4 text-primary" />
-                  <span className="text-sm">Learn from History</span>
+                  <span className="text-sm text-foreground">{t('proactive.learnFromHistory')}</span>
                 </button>
                 <button
                   onClick={() => handleRunTask('summarize_period')}
                   disabled={isActionLoading || agentState === 'sleeping'}
-                  className="flex items-center gap-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 disabled:opacity-50 transition-colors"
+                  className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 dark:bg-muted/30 hover:bg-muted/70 dark:hover:bg-muted/50 disabled:opacity-50 transition-colors border border-border/50"
                 >
                   <FileText className="w-4 h-4 text-primary" />
-                  <span className="text-sm">Summarize Today</span>
+                  <span className="text-sm text-foreground">{t('proactive.summarizeToday')}</span>
                 </button>
                 <button
                   onClick={() => handleRunTask('discover_patterns')}
                   disabled={isActionLoading || agentState === 'sleeping'}
-                  className="flex items-center gap-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 disabled:opacity-50 transition-colors"
+                  className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 dark:bg-muted/30 hover:bg-muted/70 dark:hover:bg-muted/50 disabled:opacity-50 transition-colors border border-border/50"
                 >
                   <ListTodo className="w-4 h-4 text-primary" />
-                  <span className="text-sm">Discover Patterns</span>
+                  <span className="text-sm text-foreground">{t('proactive.discoverPatterns')}</span>
                 </button>
                 <button
                   onClick={() => handleRunTask('health_check')}
                   disabled={isActionLoading || agentState === 'sleeping'}
-                  className="flex items-center gap-2 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 disabled:opacity-50 transition-colors"
+                  className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 dark:bg-muted/30 hover:bg-muted/70 dark:hover:bg-muted/50 disabled:opacity-50 transition-colors border border-border/50"
                 >
                   <CheckCircle2 className="w-4 h-4 text-primary" />
-                  <span className="text-sm">Health Check</span>
+                  <span className="text-sm text-foreground">{t('proactive.healthCheck')}</span>
                 </button>
               </div>
             </div>
@@ -468,7 +470,7 @@ export default function ProactivePage(): JSX.Element {
             {/* Active Tasks */}
             <div className="p-5 rounded-xl glass-card">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">
-                Task Queue ({tasks.length})
+                {t('proactive.taskQueue')} ({tasks.length})
               </h3>
               {sortedTasks.length > 0 ? (
                 <div className="space-y-3">
@@ -482,7 +484,7 @@ export default function ProactivePage(): JSX.Element {
                           <div>
                             <p className="text-sm font-medium">{task.title}</p>
                             <p className="text-xs text-muted-foreground">
-                              {task.type} • Priority: {task.priority}
+                              {task.type} • {t('proactive.priority')}: {task.priority}
                               {task.scheduled_time && (
                                 <span className="ml-2 text-primary">
                                   @ {new Date(task.scheduled_time).toLocaleString('zh-CN', {
@@ -496,13 +498,13 @@ export default function ProactivePage(): JSX.Element {
                             </p>
                           </div>
                         </div>
-                        <span className={`text-xs ${statusInfo.color}`}>{statusInfo.label}</span>
+                        <span className={`text-xs ${statusInfo.color}`}>{t(statusInfo.labelKey as any)}</span>
                       </div>
                     )
                   })}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">No tasks in queue</p>
+                <p className="text-sm text-muted-foreground text-center py-4">{t('proactive.noTasksInQueue')}</p>
               )}
             </div>
 
@@ -510,7 +512,7 @@ export default function ProactivePage(): JSX.Element {
             <div className="p-5 rounded-xl glass-card">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  Recent History ({taskHistory.length})
+                  {t('proactive.recentHistory')} ({taskHistory.length})
                 </h3>
                 {totalHistoryPages > 1 && (
                   <div className="flex items-center gap-2">
@@ -556,12 +558,12 @@ export default function ProactivePage(): JSX.Element {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className={`text-xs ${statusInfo.color}`}>{statusInfo.label}</span>
+                          <span className={`text-xs ${statusInfo.color}`}>{t(statusInfo.labelKey as any)}</span>
                           <Eye className="w-4 h-4 text-muted-foreground" />
                           <button
                             onClick={(e) => handleDeleteHistory(task.id, e)}
                             className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-red-500 transition-opacity"
-                            title="删除历史记录"
+                            title={t('proactive.deleteHistory')}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -571,7 +573,7 @@ export default function ProactivePage(): JSX.Element {
                   })}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">No task history</p>
+                <p className="text-sm text-muted-foreground text-center py-4">{t('proactive.noTaskHistory')}</p>
               )}
             </div>
           </div>
@@ -584,31 +586,31 @@ export default function ProactivePage(): JSX.Element {
               <div className="p-5 rounded-xl glass-card">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                    Profile Summary
+                    {t('proactive.profileSummary')}
                   </h3>
                   <button
                     onClick={handleInitializeProfile}
                     disabled={isActionLoading}
                     className="text-xs text-primary hover:underline"
                   >
-                    Initialize Profile
+                    {t('proactive.initializeProfile')}
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
                     <p className="text-2xl font-bold text-primary">{profileSummary.total_files}</p>
-                    <p className="text-xs text-muted-foreground">Total Files</p>
+                    <p className="text-xs text-muted-foreground">{t('proactive.totalFiles')}</p>
                   </div>
                   <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
                     <p className="text-2xl font-bold text-primary">
                       {Object.keys(profileSummary.categories).length}
                     </p>
-                    <p className="text-xs text-muted-foreground">Categories</p>
+                    <p className="text-xs text-muted-foreground">{t('proactive.categories')}</p>
                   </div>
                 </div>
                 {profileSummary.key_facts && profileSummary.key_facts.length > 0 && (
                   <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-2">Key Facts</p>
+                    <p className="text-xs font-medium text-muted-foreground mb-2">{t('proactive.keyFacts')}</p>
                     <ul className="space-y-1">
                       {profileSummary.key_facts.slice(0, 5).map((fact, i) => (
                         <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
@@ -626,7 +628,7 @@ export default function ProactivePage(): JSX.Element {
             {profileFiles && Object.entries(profileFiles.files_by_layer).length > 0 && (
               <div className="p-5 rounded-xl glass-card">
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">
-                  Profile Files by Layer
+                  {t('proactive.profileFilesByLayer')}
                 </h3>
                 <div className="space-y-4">
                   {Object.entries(profileFiles.files_by_layer).map(([layer, files]) => (
@@ -658,7 +660,7 @@ export default function ProactivePage(): JSX.Element {
                         ))}
                         {files.length > 5 && (
                           <p className="text-xs text-muted-foreground pl-6">
-                            +{files.length - 5} more files
+                            +{files.length - 5} {t('proactive.moreFiles')}
                           </p>
                         )}
                       </div>
@@ -672,9 +674,9 @@ export default function ProactivePage(): JSX.Element {
             {(!profileFiles || Object.entries(profileFiles.files_by_layer).length === 0) && (
               <div className="p-8 rounded-xl glass-card text-center">
                 <User className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No Profile Files Yet</h3>
+                <h3 className="text-lg font-semibold mb-2">{t('proactive.noProfileFilesYet')}</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Initialize your profile to start building your personal knowledge base.
+                  {t('proactive.noProfileFilesDesc')}
                 </p>
                 <button
                   onClick={handleInitializeProfile}
@@ -682,7 +684,7 @@ export default function ProactivePage(): JSX.Element {
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
                 >
                   {isActionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                  Initialize Profile
+                  {t('proactive.initializeProfile')}
                 </button>
               </div>
             )}
@@ -718,7 +720,7 @@ export default function ProactivePage(): JSX.Element {
                     }`}
                   >
                     <BookOpen className="w-4 h-4" />
-                    Preview
+                    {t('proactive.preview')}
                   </button>
                   <button
                     onClick={() => setViewMode('code')}
@@ -729,7 +731,7 @@ export default function ProactivePage(): JSX.Element {
                     }`}
                   >
                     <Code className="w-4 h-4" />
-                    Code
+                    {t('proactive.code')}
                   </button>
                 </div>
                 <button
@@ -868,7 +870,7 @@ export default function ProactivePage(): JSX.Element {
                       <div>
                         <h3 className="font-semibold">{selectedTask.title}</h3>
                         <p className="text-xs text-muted-foreground">
-                          {selectedTask.type} • {statusInfo.label}
+                          {selectedTask.type} • {t(statusInfo.labelKey as any)}
                         </p>
                       </div>
                     </>
@@ -888,18 +890,18 @@ export default function ProactivePage(): JSX.Element {
               {/* Task Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-3 rounded-lg bg-muted/30">
-                  <p className="text-xs text-muted-foreground mb-1">Priority</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t('proactive.priority')}</p>
                   <p className="text-sm font-medium">{selectedTask.priority}</p>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/30">
-                  <p className="text-xs text-muted-foreground mb-1">Execution Time</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t('proactive.executionTime')}</p>
                   <p className="text-sm font-medium">
                     {selectedTask.execution_time_ms ? `${selectedTask.execution_time_ms}ms` : 'N/A'}
                   </p>
                 </div>
                 {selectedTask.created_at && (
                   <div className="p-3 rounded-lg bg-muted/30">
-                    <p className="text-xs text-muted-foreground mb-1">Created</p>
+                    <p className="text-xs text-muted-foreground mb-1">{t('proactive.created')}</p>
                     <p className="text-sm font-medium">
                       {new Date(selectedTask.created_at).toLocaleString()}
                     </p>
@@ -907,7 +909,7 @@ export default function ProactivePage(): JSX.Element {
                 )}
                 {selectedTask.completed_at && (
                   <div className="p-3 rounded-lg bg-muted/30">
-                    <p className="text-xs text-muted-foreground mb-1">Completed</p>
+                    <p className="text-xs text-muted-foreground mb-1">{t('proactive.completed')}</p>
                     <p className="text-sm font-medium">
                       {new Date(selectedTask.completed_at).toLocaleString()}
                     </p>
@@ -918,7 +920,7 @@ export default function ProactivePage(): JSX.Element {
               {/* Description */}
               {selectedTask.description && (
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Description</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">{t('proactive.description')}</p>
                   <p className="text-sm text-foreground/90 p-3 rounded-lg bg-muted/30">
                     {selectedTask.description}
                   </p>
@@ -928,9 +930,9 @@ export default function ProactivePage(): JSX.Element {
               {/* Result */}
               {selectedTask.result && (
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Result</p>
-                  <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
-                    <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-foreground/90 prose-li:text-foreground/90 prose-strong:text-foreground">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">{t('proactive.result')}</p>
+                  <div className="p-4 rounded-lg bg-green-500/10 dark:bg-green-500/5 border border-green-500/20">
+                    <div className="max-w-none">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
@@ -944,19 +946,19 @@ export default function ProactivePage(): JSX.Element {
                             <h3 className="text-sm font-medium mt-2 mb-1 text-foreground">{children}</h3>
                           ),
                           p: ({ children }) => (
-                            <p className="text-sm text-foreground/90 leading-relaxed mb-2">{children}</p>
+                            <p className="text-sm text-foreground leading-relaxed mb-2">{children}</p>
                           ),
                           ul: ({ children }) => (
-                            <ul className="list-disc list-inside space-y-1 mb-2 text-sm text-foreground/90">{children}</ul>
+                            <ul className="list-disc list-inside space-y-1 mb-2 text-sm text-foreground">{children}</ul>
                           ),
                           ol: ({ children }) => (
-                            <ol className="list-decimal list-inside space-y-1 mb-2 text-sm text-foreground/90">{children}</ol>
+                            <ol className="list-decimal list-inside space-y-1 mb-2 text-sm text-foreground">{children}</ol>
                           ),
                           li: ({ children }) => (
-                            <li className="text-sm text-foreground/90">{children}</li>
+                            <li className="text-sm text-foreground">{children}</li>
                           ),
                           strong: ({ children }) => (
-                            <strong className="font-semibold text-foreground">{children}</strong>
+                            <strong className="font-bold text-foreground">{children}</strong>
                           ),
                           code({ className, children, ...props }) {
                             const match = /language-(\w+)/.exec(className || '')
@@ -988,7 +990,7 @@ export default function ProactivePage(): JSX.Element {
               {/* Error */}
               {selectedTask.error && (
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Error</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">{t('proactive.error')}</p>
                   <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
                     <pre className="text-sm text-red-500 whitespace-pre-wrap font-mono">
                       {selectedTask.error}
@@ -1000,7 +1002,7 @@ export default function ProactivePage(): JSX.Element {
               {/* Target File */}
               {selectedTask.target_file && (
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Target File</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">{t('proactive.targetFile')}</p>
                   <p className="text-sm text-foreground/90 p-3 rounded-lg bg-muted/30 font-mono">
                     {selectedTask.target_file}
                   </p>

@@ -19,10 +19,12 @@ import {
   VisualizationStats,
   TimelineEvent
 } from '../services/api'
+import { useLanguage } from '../contexts/LanguageContext'
 
 type TabType = 'overview' | 'timeline' | 'heatmap'
 
 export default function VisualizationPage(): JSX.Element {
+  const { t } = useLanguage()
   const [activeTab, setActiveTab] = useState<TabType>('overview')
   const [stats, setStats] = useState<VisualizationStats | null>(null)
   const [timeline, setTimeline] = useState<TimelineData | null>(null)
@@ -75,9 +77,9 @@ export default function VisualizationPage(): JSX.Element {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Insights</h1>
+          <h1 className="text-2xl font-bold">{t('insights.title')}</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Visualize your memory patterns and knowledge
+            {t('insights.subtitle')}
           </p>
         </div>
         <button
@@ -86,7 +88,7 @@ export default function VisualizationPage(): JSX.Element {
           className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-muted/60 hover:bg-muted transition-all duration-200 disabled:opacity-50 shadow-warm-sm"
         >
           <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-          <span>Refresh</span>
+          <span>{t('common.refresh')}</span>
         </button>
       </div>
 
@@ -96,19 +98,19 @@ export default function VisualizationPage(): JSX.Element {
           active={activeTab === 'overview'}
           onClick={() => setActiveTab('overview')}
           icon={<Activity className="w-4 h-4" />}
-          label="Overview"
+          label={t('insights.overview')}
         />
         <TabButton
           active={activeTab === 'timeline'}
           onClick={() => setActiveTab('timeline')}
           icon={<Clock className="w-4 h-4" />}
-          label="Timeline"
+          label={t('insights.timeline')}
         />
         <TabButton
           active={activeTab === 'heatmap'}
           onClick={() => setActiveTab('heatmap')}
           icon={<Calendar className="w-4 h-4" />}
-          label="Activity"
+          label={t('insights.activity')}
         />
       </div>
 
@@ -168,6 +170,8 @@ function OverviewTab({
   topics: TopicData | null
   isLoading: boolean
 }): JSX.Element {
+  const { t } = useLanguage()
+
   if (isLoading && !stats) {
     return <LoadingState />
   }
@@ -178,30 +182,30 @@ function OverviewTab({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={<Calendar className="w-5 h-5 text-purple-500" />}
-          title="Episodic Memories"
+          title={t('insights.episodicMemories')}
           value={stats?.episodic.total ?? 0}
-          subtext={`+${stats?.episodic.this_week ?? 0} this week`}
+          subtext={`+${stats?.episodic.this_week ?? 0} ${t('insights.thisWeek')}`}
           bgColor="bg-purple-50 dark:bg-purple-900/20"
         />
         <StatCard
           icon={<Brain className="w-5 h-5 text-blue-500" />}
-          title="Semantic Memories"
+          title={t('insights.semanticMemories')}
           value={stats?.semantic.total ?? 0}
-          subtext={`${stats?.semantic.knowledge ?? 0} knowledge, ${stats?.semantic.preference ?? 0} preferences`}
+          subtext={`${stats?.semantic.knowledge ?? 0} ${t('insights.knowledge')}, ${stats?.semantic.preference ?? 0} ${t('insights.preferences')}`}
           bgColor="bg-blue-50 dark:bg-blue-900/20"
         />
         <StatCard
           icon={<TrendingUp className="w-5 h-5 text-green-500" />}
-          title="Active Days"
+          title={t('insights.activeDays')}
           value={heatmap?.stats.active_days ?? 0}
-          subtext={`Avg ${heatmap?.stats.average_daily ?? 0} memories/day`}
+          subtext={`${t('insights.avg')} ${heatmap?.stats.average_daily ?? 0} ${t('insights.memoriesPerDay')}`}
           bgColor="bg-green-50 dark:bg-green-900/20"
         />
         <StatCard
           icon={<Activity className="w-5 h-5 text-orange-500" />}
-          title="Confidence"
+          title={t('insights.confidence')}
           value={`${Math.round((stats?.semantic.avg_confidence ?? 0) * 100)}%`}
-          subtext="Average memory confidence"
+          subtext={t('insights.avgMemoryConfidence')}
           bgColor="bg-orange-50 dark:bg-orange-900/20"
         />
       </div>
@@ -209,7 +213,7 @@ function OverviewTab({
       {/* Mini Heatmap */}
       {heatmap && (
         <div className="p-5 rounded-lg glass-card">
-          <h3 className="text-sm font-medium mb-3">Activity (Last 90 Days)</h3>
+          <h3 className="text-sm font-medium mb-3">{t('insights.activityLast90Days')}</h3>
           <MiniHeatmap data={heatmap.heatmap.slice(-63)} />
         </div>
       )}
@@ -217,7 +221,7 @@ function OverviewTab({
       {/* Topics & Keywords */}
       {topics && topics.top_keywords.length > 0 && (
         <div className="p-5 rounded-lg glass-card">
-          <h3 className="text-sm font-medium mb-3">Top Keywords</h3>
+          <h3 className="text-sm font-medium mb-3">{t('insights.topKeywords')}</h3>
           <div className="flex flex-wrap gap-2">
             {topics.top_keywords.slice(0, 15).map((kw, i) => (
               <span
@@ -239,18 +243,18 @@ function OverviewTab({
           <div className="p-5 rounded-lg glass-card">
             <div className="flex items-center gap-2 mb-2">
               <Lightbulb className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">Knowledge</span>
+              <span className="text-sm font-medium">{t('insights.knowledgeType')}</span>
             </div>
             <p className="text-3xl font-bold">{topics.type_distribution.knowledge ?? 0}</p>
-            <p className="text-xs text-muted-foreground mt-1">Facts and information</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('insights.factsAndInformation')}</p>
           </div>
           <div className="p-5 rounded-lg glass-card">
             <div className="flex items-center gap-2 mb-2">
               <Heart className="w-4 h-4 text-accent" />
-              <span className="text-sm font-medium">Preferences</span>
+              <span className="text-sm font-medium">{t('insights.preferencesType')}</span>
             </div>
             <p className="text-3xl font-bold">{topics.type_distribution.preference ?? 0}</p>
-            <p className="text-xs text-muted-foreground mt-1">Personal tastes and habits</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('insights.personalTastesAndHabits')}</p>
           </div>
         </div>
       )}
@@ -269,6 +273,7 @@ function TimelineTab({
   setDays: (d: number) => void
   isLoading: boolean
 }): JSX.Element {
+  const { t } = useLanguage()
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set())
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null)
 
@@ -292,7 +297,7 @@ function TimelineTab({
     <div className="space-y-4">
       {/* Controls */}
       <div className="flex items-center gap-4">
-        <span className="text-sm text-muted-foreground">Show last:</span>
+        <span className="text-sm text-muted-foreground">{t('insights.showLast')}</span>
         {[7, 14, 30, 90].map((d) => (
           <button
             key={d}
@@ -303,7 +308,7 @@ function TimelineTab({
                 : 'bg-muted/60 text-muted-foreground hover:bg-muted'
             }`}
           >
-            {d} days
+            {d} {t('insights.days')}
           </button>
         ))}
       </div>
@@ -312,8 +317,8 @@ function TimelineTab({
       {timeline?.timeline.length === 0 ? (
         <EmptyState
           icon={<Clock className="w-12 h-12" />}
-          title="No timeline data"
-          description="Start capturing screenshots to see your activity timeline"
+          title={t('insights.noTimelineData')}
+          description={t('insights.noTimelineDesc')}
         />
       ) : (
         <div className="space-y-2">
@@ -354,9 +359,11 @@ function TimelineDay({
   onToggle: () => void
   onEventClick: (event: TimelineEvent) => void
 }): JSX.Element {
+  const { t, language } = useLanguage()
+
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr)
-    return d.toLocaleDateString('en-US', {
+    return d.toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric'
@@ -376,7 +383,7 @@ function TimelineDay({
             <ChevronRight className="w-4 h-4 text-muted-foreground" />
           )}
           <span className="font-medium">{formatDate(date)}</span>
-          <span className="text-sm text-muted-foreground">({events.length} events)</span>
+          <span className="text-sm text-muted-foreground">({events.length} {t('insights.events')})</span>
         </div>
       </button>
 
@@ -402,7 +409,7 @@ function TimelineDay({
               </div>
               {event.screenshot_count > 0 && (
                 <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
-                  {event.screenshot_count} screenshots
+                  {event.screenshot_count} {t('nav.screenshots').toLowerCase()}
                 </span>
               )}
             </div>
@@ -421,8 +428,10 @@ function EventDetailModal({
   event: TimelineEvent
   onClose: () => void
 }): JSX.Element {
+  const { t, language } = useLanguage()
+
   const formatDateTime = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString('zh-CN', {
+    return new Date(timestamp).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -471,7 +480,7 @@ function EventDetailModal({
           {/* URLs */}
           {event.urls && event.urls.length > 0 && (
             <div>
-              <h3 className="text-sm font-medium mb-2">Related URLs</h3>
+              <h3 className="text-sm font-medium mb-2">{t('insights.relatedUrls')}</h3>
               <div className="space-y-1">
                 {event.urls.map((url, i) => (
                   <a
@@ -491,7 +500,7 @@ function EventDetailModal({
           {/* Screenshot count */}
           {event.screenshot_count > 0 && (
             <div className="text-sm text-muted-foreground">
-              {event.screenshot_count} screenshots associated with this memory
+              {event.screenshot_count} {t('insights.screenshotsAssociated')}
             </div>
           )}
         </div>
@@ -507,6 +516,8 @@ function HeatmapTab({
   heatmap: HeatmapData | null
   isLoading: boolean
 }): JSX.Element {
+  const { t } = useLanguage()
+
   if (isLoading && !heatmap) {
     return <LoadingState />
   }
@@ -515,8 +526,8 @@ function HeatmapTab({
     return (
       <EmptyState
         icon={<Calendar className="w-12 h-12" />}
-        title="No activity data"
-        description="Start using Nemori to see your activity heatmap"
+        title={t('insights.noActivityData')}
+        description={t('insights.noActivityDesc')}
       />
     )
   }
@@ -526,26 +537,26 @@ function HeatmapTab({
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-4 rounded-lg glass-card">
-          <p className="text-sm text-muted-foreground">Total Memories</p>
+          <p className="text-sm text-muted-foreground">{t('insights.totalMemories')}</p>
           <p className="text-2xl font-bold">{heatmap.stats.total_memories}</p>
         </div>
         <div className="p-4 rounded-lg glass-card">
-          <p className="text-sm text-muted-foreground">Active Days</p>
+          <p className="text-sm text-muted-foreground">{t('insights.activeDays')}</p>
           <p className="text-2xl font-bold">{heatmap.stats.active_days}</p>
         </div>
         <div className="p-4 rounded-lg glass-card">
-          <p className="text-sm text-muted-foreground">Max Daily</p>
+          <p className="text-sm text-muted-foreground">{t('insights.maxDaily')}</p>
           <p className="text-2xl font-bold">{heatmap.stats.max_daily}</p>
         </div>
         <div className="p-4 rounded-lg glass-card">
-          <p className="text-sm text-muted-foreground">Daily Average</p>
+          <p className="text-sm text-muted-foreground">{t('insights.dailyAverage')}</p>
           <p className="text-2xl font-bold">{heatmap.stats.average_daily}</p>
         </div>
       </div>
 
       {/* Full Heatmap */}
       <div className="p-5 rounded-lg glass-card">
-        <h3 className="text-sm font-medium mb-4">Activity Heatmap (Last 90 Days)</h3>
+        <h3 className="text-sm font-medium mb-4">{t('insights.activityHeatmap')}</h3>
         <FullHeatmap data={heatmap.heatmap} maxCount={heatmap.stats.max_daily} />
       </div>
     </div>
@@ -597,6 +608,8 @@ function FullHeatmap({
   data: HeatmapData['heatmap']
   maxCount: number
 }): JSX.Element {
+  const { t, language } = useLanguage()
+
   // Group by week
   const weeks: HeatmapData['heatmap'][] = []
   let currentWeek: HeatmapData['heatmap'] = []
@@ -620,7 +633,9 @@ function FullHeatmap({
     }
   })
 
-  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const dayLabels = language === 'zh'
+    ? ['日', '一', '二', '三', '四', '五', '六']
+    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
   // Get month labels
   const monthLabels = useMemo(() => {
@@ -690,7 +705,7 @@ function FullHeatmap({
 
       {/* Legend */}
       <div className="flex items-center gap-2 mt-4 text-xs text-muted-foreground">
-        <span>Less</span>
+        <span>{t('insights.less')}</span>
         {[0, 0.25, 0.5, 0.75, 1].map((level, i) => (
           <div
             key={i}
@@ -701,7 +716,7 @@ function FullHeatmap({
             }}
           />
         ))}
-        <span>More</span>
+        <span>{t('insights.more')}</span>
       </div>
     </div>
   )

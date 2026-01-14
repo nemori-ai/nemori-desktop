@@ -14,6 +14,12 @@ from storage.database import Database
 from storage.vector_store import VectorStore
 from services.llm_service import LLMService
 from utils.image import compress_images_for_llm, load_image_as_base64
+from prompts import inject_language
+from prompts.episodic_prompts import (
+    get_episodic_content_prompt,
+    get_merge_decision_prompt,
+    get_merged_content_prompt,
+)
 
 
 class EpisodicProcessor:
@@ -168,30 +174,14 @@ class EpisodicProcessor:
 
         events_text = "\n".join(event_details)
 
-        prompt = f"""You are an assistant that creates a personal journal entry from a user's digital activity.
-
-Here is a log of the user's recent activity:
-{events_text}
-
-{f'Summary hint: {summary}' if summary else ''}
-
-{'I have also attached screenshots from this session for visual context.' if screenshot_images else ''}
-
-Please write your response based on the following instructions:
-- **Perspective**: Write the 'content' from a first-person or close third-person perspective, as if narrating the user's own experience.
-- **Narration Style**: Create a narrative that captures the flow and purpose of the session. Do not include raw IDs or technical details.
-- **Focus**: Describe what the user did, thought, or intended to do.
-- **Visual Context**: If screenshots are provided, use them to enrich your understanding of the user's activities.
-
-Please write:
-- **title**: A concise line capturing what this episode is about (max 100 characters).
-- **content**: A detailed narrative of what happened, at least 200 words long.
-
-Return your response in JSON format:
-{{
-  "title": "...",
-  "content": "..."
-}}"""
+        # Get language from LLM service settings
+        language = getattr(self.llm, 'language', None)
+        prompt = get_episodic_content_prompt(
+            events_text=events_text,
+            summary=summary,
+            has_images=bool(screenshot_images)
+        )
+        prompt = inject_language(prompt, language)
 
         import asyncio
         last_error = None
@@ -316,32 +306,16 @@ Return your response in JSON format:
             for c in candidates
         ])
 
-        prompt = f"""You are a memory management assistant. Your task is to decide whether a newly generated episodic memory should be merged with an existing similar memory or kept as a new one.
-
-**Decision Criteria:**
-1. **Temporal Proximity:** Are the events close in time? A small gap (e.g., under 15 minutes) suggests they might be part of the same activity.
-2. **Contextual Cohesion:** Do the memories describe the same continuous event or task?
-
-**Newly Generated Memory:**
-- Time Range: {datetime.fromtimestamp(start_time/1000)} to {datetime.fromtimestamp(end_time/1000)}
-- Title: {new_content['title']}
-- Content: {new_content['content']}
-
-**Top Similar Existing Memories:**
-{candidates_summary}
-
-**Your Task:**
-Based on the criteria, decide whether to merge the new memory with ONE of the candidates or to create a new memory.
-
-- If you decide to merge, set "decision" to "merge" and provide the "merge_target_id".
-- If you decide not to merge, set "decision" to "new".
-
-**JSON Response Format:**
-{{
-  "decision": "merge" | "new",
-  "merge_target_id": "...",
-  "reason": "..."
-}}"""
+        # Get language from LLM service settings
+        language = getattr(self.llm, 'language', None)
+        prompt = get_merge_decision_prompt(
+            start_time=str(datetime.fromtimestamp(start_time/1000)),
+            end_time=str(datetime.fromtimestamp(end_time/1000)),
+            new_title=new_content['title'],
+            new_content=new_content['content'],
+            candidates_summary=candidates_summary
+        )
+        prompt = inject_language(prompt, language)
 
         try:
             response = await self.llm.chat(
@@ -446,36 +420,17 @@ Based on the criteria, decide whether to merge the new memory with ONE of the ca
             elif msg.get('screenshot_id'):
                 event_details.append(f"[{ts}] Screenshot: {msg.get('title', 'Untitled')}")
 
-        prompt = f"""You are a memory consolidation assistant. You need to merge two related memories into one coherent narrative.
-
-**Old Memory:**
-Title: {old_memory['title']}
-Content: {old_memory['content']}
-
-**New Memory:**
-Title: {new_content['title']}
-Content: {new_content['content']}
-
-**Combined Event Timeline:**
-{chr(10).join(event_details)}
-
-{'I have also attached screenshots from this session for visual context.' if screenshot_images else ''}
-
-Your task is to create a single, unified memory that combines both narratives into a coherent story. The new narrative should:
-- Seamlessly connect the events from both memories
-- Focus on creating a logical story from the user's perspective
-- Use visual context from screenshots if provided to enrich the narrative
-- Not mention screenshots or technical details directly
-
-Please write:
-- title: A new, concise title for the combined episode (max 100 characters).
-- content: A detailed narrative that merges both memories into one story. At least 300 words.
-
-Return your response in JSON format:
-{{
-  "title": "...",
-  "content": "..."
-}}"""
+        # Get language from LLM service settings
+        language = getattr(self.llm, 'language', None)
+        prompt = get_merged_content_prompt(
+            old_title=old_memory['title'],
+            old_content=old_memory['content'],
+            new_title=new_content['title'],
+            new_content=new_content['content'],
+            event_details=chr(10).join(event_details),
+            has_images=bool(screenshot_images)
+        )
+        prompt = inject_language(prompt, language)
 
         import asyncio
         max_retries = 3

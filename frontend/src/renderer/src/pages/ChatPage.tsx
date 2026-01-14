@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Send, Plus, Trash2, Loader2, Bot, MessageCircle, ChevronDown, ChevronRight, Sparkles, Search, Clock, ArrowUp } from 'lucide-react'
 import MarkdownIt from 'markdown-it'
 import { api, Message, Conversation, AgentStreamEvent, AgentToolCall } from '../services/api'
+import { useLanguage } from '../contexts/LanguageContext'
 
 // Pagination config for messages
 const MESSAGES_PAGE_SIZE = 50
@@ -246,6 +247,7 @@ function AgentMessageBubble({
 export default function ChatPage(): JSX.Element {
   const { conversationId } = useParams()
   const navigate = useNavigate()
+  const { t } = useLanguage()
 
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [currentConversation, setCurrentConversation] = useState<string | null>(conversationId || null)
@@ -671,7 +673,7 @@ export default function ChatPage(): JSX.Element {
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all duration-200 shadow-warm-sm"
           >
             <Plus className="w-4 h-4" />
-            <span>New Chat</span>
+            <span>{t('chat.newChat')}</span>
           </button>
         </div>
 
@@ -842,7 +844,7 @@ export default function ChatPage(): JSX.Element {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={isAgentMode ? "Ask me to search your memories..." : "Type a message..."}
+              placeholder={t('chat.placeholder')}
               rows={1}
               className="flex-1 resize-none rounded-lg border border-input/50 bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 shadow-warm-sm transition-all duration-200"
               disabled={isLoading}
