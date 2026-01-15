@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Save, Check, AlertCircle, Loader2, Eye, EyeOff, ExternalLink, User, RefreshCw, Trash2, Sun, Moon, Monitor, Globe } from 'lucide-react'
-import { api, AppSettings, LLMConfig, ProfileContext } from '../services/api'
+import { Save, Check, AlertCircle, Loader2, Eye, EyeOff, ExternalLink, Sun, Moon, Monitor, Globe } from 'lucide-react'
+import { api, AppSettings, LLMConfig } from '../services/api'
 import { useTheme } from '../contexts/ThemeContext'
 import { useLanguage } from '../contexts/LanguageContext'
 
@@ -15,9 +15,6 @@ export default function SettingsPage(): JSX.Element {
   const [isTesting, setIsTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const [appResult, setAppResult] = useState<{ success: boolean; message: string } | null>(null)
-  const [profileContext, setProfileContext] = useState<ProfileContext | null>(null)
-  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false)
-  const [profileResult, setProfileResult] = useState<{ success: boolean; message: string } | null>(null)
 
   // Chat Model Form state
   const [chatApiKey, setChatApiKey] = useState('')
@@ -49,17 +46,15 @@ export default function SettingsPage(): JSX.Element {
 
   const loadSettings = async (): Promise<void> => {
     try {
-      const [settingsRes, appRes, statusRes, profileRes] = await Promise.all([
+      const [settingsRes, appRes, statusRes] = await Promise.all([
         api.getAllSettings(),
         api.getAppSettings(),
-        api.getLLMStatus(),
-        api.getProfileContext().catch(() => null)
+        api.getLLMStatus()
       ])
 
       setSettings(settingsRes.settings)
       setAppSettings(appRes)
       setLlmConfigured(statusRes.configured)
-      if (profileRes) setProfileContext(profileRes)
 
       // Set Chat Model form values
       setChatBaseUrl(settingsRes.settings.chat_base_url || 'https://openrouter.ai/api/v1')
@@ -76,40 +71,6 @@ export default function SettingsPage(): JSX.Element {
       setMaxStorage(appRes.max_local_storage_mb)
     } catch (error) {
       console.error('Failed to load settings:', error)
-    }
-  }
-
-  const handleUpdateProfile = async (): Promise<void> => {
-    setIsUpdatingProfile(true)
-    setProfileResult(null)
-
-    try {
-      const result = await api.updateProfileFromMemories(30)
-      const profileRes = await api.getProfileContext()
-      setProfileContext(profileRes)
-      setProfileResult({
-        success: true,
-        message: `Profile updated: ${result.updated} items added/updated, ${result.pruned} pruned`
-      })
-    } catch (error: any) {
-      setProfileResult({ success: false, message: error.message || 'Failed to update profile' })
-    } finally {
-      setIsUpdatingProfile(false)
-    }
-  }
-
-  const handleClearProfile = async (): Promise<void> => {
-    if (!confirm('Are you sure you want to clear your profile? This cannot be undone.')) {
-      return
-    }
-
-    try {
-      await api.clearProfile()
-      const profileRes = await api.getProfileContext()
-      setProfileContext(profileRes)
-      setProfileResult({ success: true, message: 'Profile cleared successfully' })
-    } catch (error: any) {
-      setProfileResult({ success: false, message: error.message || 'Failed to clear profile' })
     }
   }
 
@@ -609,83 +570,6 @@ export default function SettingsPage(): JSX.Element {
                   <Save className="w-4 h-4" />
                 )}
                 <span>Save Settings</span>
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* User Profile */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-2">
-            <User className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">User Profile</h2>
-          </div>
-
-          <div className="space-y-4 p-5 rounded-xl glass-card">
-            <p className="text-sm text-muted-foreground">
-              Your profile is automatically built from semantic memories. It helps personalize AI responses.
-            </p>
-
-            {/* Profile Stats */}
-            {profileContext && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
-                  <p className="text-2xl font-bold text-primary">{profileContext.total_items}</p>
-                  <p className="text-xs text-muted-foreground">Total Items</p>
-                </div>
-                <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
-                  <p className="text-2xl font-bold text-primary">{Object.keys(profileContext.categories).length}</p>
-                  <p className="text-xs text-muted-foreground">Categories</p>
-                </div>
-              </div>
-            )}
-
-            {/* Profile Summary Preview */}
-            {profileContext?.summary && profileContext.summary !== 'No profile data yet.' && (
-              <div className="p-4 rounded-xl bg-muted/30 border border-border/50">
-                <p className="text-xs font-medium text-muted-foreground mb-2">Profile Summary</p>
-                <p className="text-sm whitespace-pre-wrap">{profileContext.summary}</p>
-              </div>
-            )}
-
-            {/* Profile result */}
-            {profileResult && (
-              <div
-                className={`flex items-center gap-2 p-3 rounded-lg ${
-                  profileResult.success
-                    ? 'bg-primary/10 text-primary dark:bg-primary/20'
-                    : 'bg-destructive/10 text-destructive dark:bg-destructive/20'
-                }`}
-              >
-                {profileResult.success ? (
-                  <Check className="w-4 h-4" />
-                ) : (
-                  <AlertCircle className="w-4 h-4" />
-                )}
-                <span className="text-sm">{profileResult.message}</span>
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="flex gap-3">
-              <button
-                onClick={handleUpdateProfile}
-                disabled={isUpdatingProfile}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all duration-200 shadow-warm"
-              >
-                {isUpdatingProfile ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-4 h-4" />
-                )}
-                <span>Update from Memories</span>
-              </button>
-              <button
-                onClick={handleClearProfile}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all duration-200"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Clear</span>
               </button>
             </div>
           </div>

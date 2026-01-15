@@ -157,18 +157,18 @@
 
 /* Markdown content styles */
 .markdown-content {
-  @apply max-w-none leading-relaxed;
+  @apply max-w-none leading-relaxed text-foreground;
 }
 
 .markdown-content p {
-  @apply mb-2 last:mb-0;
+  @apply mb-2 last:mb-0 text-foreground;
 }
 
 .markdown-content h1,
 .markdown-content h2,
 .markdown-content h3,
 .markdown-content h4 {
-  @apply font-semibold mb-2 mt-3 first:mt-0;
+  @apply font-semibold mb-2 mt-3 first:mt-0 text-foreground;
 }
 
 .markdown-content h1 {
@@ -238,11 +238,11 @@
 }
 
 .markdown-content strong {
-  @apply font-semibold;
+  @apply font-semibold text-foreground;
 }
 
 .markdown-content em {
-  @apply italic;
+  @apply italic text-foreground;
 }
 
 /* Chat message animation */
@@ -263,7 +263,7 @@
 
 /* Streamdown content styles */
 .streamdown-content {
-  @apply max-w-none leading-relaxed;
+  @apply max-w-none leading-relaxed text-foreground;
 }
 
 .streamdown-content > *:first-child {
@@ -275,14 +275,14 @@
 }
 
 .streamdown-content p {
-  @apply mb-2;
+  @apply mb-2 text-foreground;
 }
 
 .streamdown-content h1,
 .streamdown-content h2,
 .streamdown-content h3,
 .streamdown-content h4 {
-  @apply font-semibold mb-2 mt-3;
+  @apply font-semibold mb-2 mt-3 text-foreground;
 }
 
 .streamdown-content h1:first-child,
@@ -359,9 +359,9 @@
 }
 
 .streamdown-content strong {
-  @apply font-semibold;
+  @apply font-semibold text-foreground;
 }
 
 .streamdown-content em {
-  @apply italic;
+  @apply italic text-foreground;
 }

@@ -30,6 +30,26 @@ print_warning() {
     echo -e "${YELLOW}! $1${NC}"
 }
 
+load_env() {
+    local env_file="$SCRIPT_DIR/.env"
+    if [[ -f "$env_file" ]]; then
+        print_success "Loading environment variables from .env"
+        set -a
+        source "$env_file"
+        set +a
+        
+        # Verify signing environment variables
+        if [[ -n "$APPLE_ID" && -n "$APPLE_APP_SPECIFIC_PASSWORD" && -n "$APPLE_TEAM_ID" ]]; then
+            print_success "Apple signing credentials loaded (APPLE_TEAM_ID=$APPLE_TEAM_ID)"
+        else
+            print_warning "Apple signing credentials not complete in .env"
+            print_warning "App will be signed but NOT notarized"
+        fi
+    else
+        print_warning ".env file not found, skipping environment setup"
+    fi
+}
+
 detect_platform() {
     case "$(uname -s)" in
         Darwin*)
@@ -153,6 +173,9 @@ build_frontend() {
     local target=$1
 
     print_header "Building Frontend for $target"
+
+    # Load environment variables for signing/notarization
+    load_env
 
     cd "$FRONTEND_DIR"
 

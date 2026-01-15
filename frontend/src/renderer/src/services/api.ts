@@ -162,11 +162,12 @@ class ApiService {
     const decoder = new TextDecoder('utf-8')
     let fullContent = ''
     let buffer = '' // Buffer for incomplete SSE lines
+    let streamDone = false // Flag to track when [DONE] is received
 
     if (reader) {
       while (true) {
         const { done, value } = await reader.read()
-        if (done) {
+        if (done || streamDone) {
           // Flush any remaining data in decoder
           const remaining = decoder.decode()
           if (remaining) buffer += remaining
@@ -185,7 +186,10 @@ class ApiService {
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             const data = line.slice(6)
-            if (data === '[DONE]') continue
+            if (data === '[DONE]') {
+              streamDone = true
+              break // Break out of inner loop
+            }
             try {
               // Parse JSON-encoded chunk to handle newlines and special characters
               const chunk = JSON.parse(data)
@@ -737,11 +741,12 @@ class ApiService {
     const reader = response.body?.getReader()
     const decoder = new TextDecoder('utf-8')
     let buffer = ''
+    let streamDone = false // Flag to track when [DONE] is received
 
     if (reader) {
       while (true) {
         const { done, value } = await reader.read()
-        if (done) {
+        if (done || streamDone) {
           const remaining = decoder.decode()
           if (remaining) buffer += remaining
           break
@@ -756,7 +761,10 @@ class ApiService {
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             const data = line.slice(6)
-            if (data === '[DONE]') continue
+            if (data === '[DONE]') {
+              streamDone = true
+              break // Break out of inner loop
+            }
             try {
               const event = JSON.parse(data) as AgentStreamEvent
               onEvent(event)

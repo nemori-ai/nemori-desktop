@@ -53,7 +53,9 @@ interface ScreenshotAPI {
   getMonitors: () => Promise<MonitorInfo[]>
   getPreview: (monitorId: string) => Promise<string | null>
   setMonitor: (monitorId: string) => Promise<boolean>
+  setMonitors: (monitorIds: string[]) => Promise<boolean>
   getSelectedMonitor: () => Promise<string | null>
+  getSelectedMonitors: () => Promise<string[]>
   capture: () => Promise<CaptureResult>
   openPermissionSettings: () => Promise<boolean>
   startCapture: (intervalMs?: number) => Promise<boolean>

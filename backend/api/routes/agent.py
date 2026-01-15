@@ -130,6 +130,14 @@ async def agent_chat(request: AgentChatRequest):
 
                 yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
 
+            # Update conversation title for new conversations (based on user's first message)
+            # This should happen regardless of whether there's a response
+            if is_new_conversation or len(history) <= 1:
+                title = request.content[:50].strip()
+                if len(request.content) > 50:
+                    title = title.rsplit(' ', 1)[0] + '...'
+                await db.update_conversation(conversation_id, title)
+
             # Save assistant response after completion
             if final_response:
                 assistant_message_id = str(uuid.uuid4())
@@ -160,13 +168,6 @@ async def agent_chat(request: AgentChatRequest):
                     "conversation_id": conversation_id,
                     "metadata": {"session_id": session_id, "is_agent": True}
                 })
-
-                # Update conversation title for new conversations
-                if is_new_conversation or len(history) <= 1:
-                    title = request.content[:50].strip()
-                    if len(request.content) > 50:
-                        title = title.rsplit(' ', 1)[0] + '...'
-                    await db.update_conversation(conversation_id, title)
 
         except Exception as e:
             # Send error event

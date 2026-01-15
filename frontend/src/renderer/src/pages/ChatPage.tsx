@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Send, Plus, Trash2, Loader2, Bot, MessageCircle, ChevronDown, ChevronRight, Sparkles, Search, Clock, ArrowUp } from 'lucide-react'
+import { Send, Plus, Trash2, Loader2, Bot, MessageCircle, ChevronDown, ChevronRight, Sparkles, Search, Clock, ArrowUp, PanelLeftClose, PanelLeft } from 'lucide-react'
 import MarkdownIt from 'markdown-it'
 import { api, Message, Conversation, AgentStreamEvent, AgentToolCall } from '../services/api'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -187,6 +187,8 @@ function AgentMessageBubble({
   isStreaming: boolean
 }): JSX.Element {
   const [expandedTools, setExpandedTools] = useState<Set<string>>(new Set())
+  // Track if tool calls section is collapsed (auto-collapse when not streaming and has content)
+  const [toolsCollapsed, setToolsCollapsed] = useState(!isStreaming && !!content)
 
   const toggleTool = (id: string) => {
     setExpandedTools((prev) => {
@@ -200,23 +202,52 @@ function AgentMessageBubble({
     })
   }
 
+  // Auto-collapse tool calls when streaming ends
+  useEffect(() => {
+    if (!isStreaming && content && toolCalls.length > 0) {
+      setToolsCollapsed(true)
+      setExpandedTools(new Set())
+    }
+  }, [isStreaming, content, toolCalls.length])
+
   return (
     <div className="flex justify-start message-enter">
       <div className="max-w-[85%]">
         {/* Thinking indicator */}
         {isThinking && <ThinkingIndicator step={thinkingStep} />}
 
-        {/* Tool calls */}
+        {/* Tool calls - collapsible when not streaming */}
         {toolCalls.length > 0 && (
           <div className="mb-2">
-            {toolCalls.map((tc) => (
-              <ToolCallDisplay
-                key={tc.id}
-                toolCall={tc}
-                isExpanded={expandedTools.has(tc.id)}
-                onToggle={() => toggleTool(tc.id)}
-              />
-            ))}
+            {!isStreaming && content ? (
+              // Collapsed view - show summary button
+              <button
+                onClick={() => setToolsCollapsed(!toolsCollapsed)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg glass-card hover:bg-muted/40 transition-all duration-200 text-sm text-muted-foreground"
+              >
+                {toolsCollapsed ? (
+                  <ChevronRight className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+                <Bot className="w-4 h-4" />
+                <span>{toolCalls.length} 个工具调用</span>
+              </button>
+            ) : null}
+
+            {/* Show tool calls when expanded or during streaming */}
+            {(isStreaming || !toolsCollapsed) && (
+              <div className={!isStreaming && content ? 'mt-2' : ''}>
+                {toolCalls.map((tc) => (
+                  <ToolCallDisplay
+                    key={tc.id}
+                    toolCall={tc}
+                    isExpanded={expandedTools.has(tc.id)}
+                    onToggle={() => toggleTool(tc.id)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -267,6 +298,9 @@ export default function ChatPage(): JSX.Element {
   const [hasMoreMessages, setHasMoreMessages] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [messagesOffset, setMessagesOffset] = useState(0)
+
+  // Sidebar collapse state - collapsed by default
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
 
   // Refs to track latest values (to avoid stale closures)
   const streamingContentRef = useRef('')
@@ -665,18 +699,8 @@ export default function ChatPage(): JSX.Element {
 
   return (
     <div className="flex h-full">
-      {/* Conversations sidebar with glass effect */}
-      <div className="w-64 flex flex-col glass-sidebar">
-        <div className="p-4 border-b border-border/50">
-          <button
-            onClick={handleNewConversation}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all duration-200 shadow-warm-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{t('chat.newChat')}</span>
-          </button>
-        </div>
-
+      {/* Conversations sidebar with glass effect - collapsible */}
+      <div className={`flex flex-col glass-sidebar transition-all duration-300 ${sidebarCollapsed ? 'w-0 overflow-hidden' : 'w-64'}`}>
         <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
           {conversations.map((conv) => (
             <div
@@ -710,7 +734,20 @@ export default function ChatPage(): JSX.Element {
         {/* Mode toggle header */}
         <div className="border-b border-border/50 px-5 py-3 flex items-center justify-between bg-background/50 backdrop-blur-sm">
           <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">Mode:</span>
+            {/* Sidebar toggle button */}
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="p-2 rounded-lg hover:bg-muted/60 transition-all duration-200 text-muted-foreground hover:text-foreground"
+              title={sidebarCollapsed ? '展开侧边栏' : '折叠侧边栏'}
+            >
+              {sidebarCollapsed ? (
+                <PanelLeft className="w-4 h-4" />
+              ) : (
+                <PanelLeftClose className="w-4 h-4" />
+              )}
+            </button>
+
+            {/* Mode selector */}
             <div className="flex items-center bg-muted/60 rounded-lg p-1 shadow-warm-sm">
               <button
                 onClick={() => setIsAgentMode(false)}
@@ -735,6 +772,15 @@ export default function ChatPage(): JSX.Element {
                 Agent
               </button>
             </div>
+
+            {/* New chat button - small + icon */}
+            <button
+              onClick={handleNewConversation}
+              className="p-2 rounded-lg border border-border/50 hover:bg-muted/60 transition-all duration-200 text-muted-foreground hover:text-foreground"
+              title={t('chat.newChat')}
+            >
+              <Plus className="w-4 h-4" />
+            </button>
           </div>
           {isAgentMode && (
             <span className="text-xs text-muted-foreground">

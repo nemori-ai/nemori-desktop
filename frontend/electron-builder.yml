@@ -21,7 +21,10 @@ mac:
     - NSCameraUsageDescription: Application requests access to the device's camera.
     - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
     - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
-  notarize: false
+  # 签名配置 - electron-builder 会自动查找 "Developer ID Application" 证书
+  # 公证配置 - 设置为 true 时自动从环境变量读取:
+  # APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
+  notarize: true
   extraResources:
     - from: "../backend/dist/nemori-backend/"
       to: "backend/nemori-backend"

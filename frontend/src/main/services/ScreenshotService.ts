@@ -1,5 +1,7 @@
-import { desktopCapturer, screen, systemPreferences } from 'electron'
+import { desktopCapturer, screen, systemPreferences, app } from 'electron'
 import http from 'http'
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
+import { join, dirname } from 'path'
 
 export interface MonitorInfo {
   id: string
@@ -18,6 +20,17 @@ export interface CaptureResult {
   error?: string
 }
 
+// Saved monitor preference - use display properties for matching instead of dynamic IDs
+interface SavedMonitorPreference {
+  name: string
+  width: number
+  height: number
+  x: number
+  y: number
+}
+
+const MONITOR_PREFS_FILE = 'monitor_preferences.json'
+
 export class ScreenshotService {
   // Support multiple selected monitors for independent capture
   private selectedMonitorIds: Set<string> = new Set()
@@ -25,6 +38,7 @@ export class ScreenshotService {
   private isCapturing: boolean = false
   private intervalMs: number = 10000
   private getBackendUrl: () => string
+  private prefsPath: string
 
   /**
    * Create a ScreenshotService with a dynamic backend URL getter
@@ -33,6 +47,87 @@ export class ScreenshotService {
   constructor(getBackendUrl: () => string) {
     // Dynamic getter is required to ensure correct port is used
     this.getBackendUrl = getBackendUrl
+    // Store preferences in user data directory
+    this.prefsPath = join(app.getPath('userData'), MONITOR_PREFS_FILE)
+    // Load saved preferences on startup
+    this.loadMonitorPreferences()
+  }
+
+  /**
+   * Save monitor preferences to disk
+   * Uses monitor properties (not IDs) since IDs change between sessions
+   */
+  private async saveMonitorPreferences(): Promise<void> {
+    try {
+      const monitors = await this.getMonitors()
+      const selectedMonitors = monitors.filter(m => this.selectedMonitorIds.has(m.id))
+
+      // Save monitor properties that can be matched later
+      const preferences: SavedMonitorPreference[] = selectedMonitors.map(m => ({
+        name: m.name,
+        width: m.width,
+        height: m.height,
+        x: m.x,
+        y: m.y
+      }))
+
+      // Ensure directory exists
+      const dir = dirname(this.prefsPath)
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true })
+      }
+
+      writeFileSync(this.prefsPath, JSON.stringify(preferences, null, 2))
+      console.log(`Monitor preferences saved: ${preferences.length} monitor(s)`)
+    } catch (error) {
+      console.error('Failed to save monitor preferences:', error)
+    }
+  }
+
+  /**
+   * Load monitor preferences from disk and match with current monitors
+   */
+  private async loadMonitorPreferences(): Promise<void> {
+    try {
+      if (!existsSync(this.prefsPath)) {
+        console.log('No saved monitor preferences found')
+        return
+      }
+
+      const data = readFileSync(this.prefsPath, 'utf-8')
+      const savedPrefs: SavedMonitorPreference[] = JSON.parse(data)
+
+      if (!savedPrefs || savedPrefs.length === 0) {
+        return
+      }
+
+      // Get current monitors
+      const currentMonitors = await this.getMonitors()
+
+      // Match saved preferences with current monitors by properties
+      const matchedIds: string[] = []
+      for (const pref of savedPrefs) {
+        const match = currentMonitors.find(m =>
+          m.width === pref.width &&
+          m.height === pref.height &&
+          m.x === pref.x &&
+          m.y === pref.y
+        )
+        if (match) {
+          matchedIds.push(match.id)
+          console.log(`Matched saved monitor: ${pref.name} -> ${match.id}`)
+        } else {
+          console.log(`Could not match saved monitor: ${pref.name} (${pref.width}x${pref.height} at ${pref.x},${pref.y})`)
+        }
+      }
+
+      if (matchedIds.length > 0) {
+        this.selectedMonitorIds = new Set(matchedIds)
+        console.log(`Restored ${matchedIds.length} monitor selection(s) from preferences`)
+      }
+    } catch (error) {
+      console.error('Failed to load monitor preferences:', error)
+    }
   }
 
   /**
@@ -71,11 +166,18 @@ export class ScreenshotService {
 
     const monitors: MonitorInfo[] = []
     const primaryDisplay = screen.getPrimaryDisplay()
+    const hasSelection = this.selectedMonitorIds.size > 0
 
     // Add individual screens (no "All Screens" option - each screen is captured independently)
     for (const source of sources) {
       const display = displays.find((d) => source.display_id === String(d.id))
       const isPrimary = display?.id === primaryDisplay.id
+
+      // If user has saved preferences, use those; otherwise default to primary screen
+      const isSelected = hasSelection
+        ? this.selectedMonitorIds.has(source.id)
+        : isPrimary
+
       if (display) {
         monitors.push({
           id: source.id,
@@ -84,7 +186,7 @@ export class ScreenshotService {
           height: display.bounds.height,
           x: display.bounds.x,
           y: display.bounds.y,
-          selected: isPrimary // Primary screen selected by default
+          selected: isSelected
         })
       } else {
         // Fallback for screens without matching display
@@ -95,7 +197,7 @@ export class ScreenshotService {
           height: primaryDisplay.bounds.height,
           x: 0,
           y: 0,
-          selected: monitors.length === 0 // First one selected by default
+          selected: hasSelection ? this.selectedMonitorIds.has(source.id) : monitors.length === 0
         })
       }
     }
@@ -140,6 +242,8 @@ export class ScreenshotService {
   setSelectedMonitor(monitorId: string): void {
     this.selectedMonitorIds.clear()
     this.selectedMonitorIds.add(monitorId)
+    // Save preferences when selection changes
+    this.saveMonitorPreferences()
   }
 
   /**
@@ -158,6 +262,8 @@ export class ScreenshotService {
     } else {
       this.selectedMonitorIds.add(monitorId)
     }
+    // Save preferences when selection changes
+    this.saveMonitorPreferences()
   }
 
   /**
@@ -165,6 +271,8 @@ export class ScreenshotService {
    */
   setSelectedMonitors(monitorIds: string[]): void {
     this.selectedMonitorIds = new Set(monitorIds)
+    // Save preferences when selection changes
+    this.saveMonitorPreferences()
   }
 
   /**

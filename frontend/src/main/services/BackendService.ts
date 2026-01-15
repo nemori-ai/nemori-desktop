@@ -241,7 +241,20 @@ export class BackendService {
   }
 
   private findPythonPath(): string | null {
-    // Check common Python locations
+    // First, try to find venv Python in backend directory (preferred for correct dependencies)
+    const backendPath = this.findBackendPath()
+    if (backendPath) {
+      const venvPython = process.platform === 'win32'
+        ? join(backendPath, '.venv', 'Scripts', 'python.exe')
+        : join(backendPath, '.venv', 'bin', 'python3')
+
+      if (existsSync(venvPython)) {
+        console.log('[Dev] Using venv Python:', venvPython)
+        return venvPython
+      }
+    }
+
+    // Fallback to system Python
     const candidates = [
       'python3',
       'python',

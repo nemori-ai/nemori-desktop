@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, screen, nativeTheme, systemPreferences } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, screen } from 'electron'
 import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
 import { BackendService } from './services/BackendService'
@@ -74,7 +74,7 @@ function createWindow(): void {
     autoHideMenuBar: true,
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 16 },
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1a1a1a' : '#ffffff',
+    backgroundColor: '#FDFCF9', // Light theme default, actual theme is managed by renderer
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
