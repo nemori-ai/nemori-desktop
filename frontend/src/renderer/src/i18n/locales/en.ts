@@ -4,12 +4,12 @@
 
 const en = {
   // Navigation
-  'nav.chat': 'Chat',
+  'nav.chat': 'Talk',
   'nav.memories': 'Memories',
-  'nav.insights': 'Insights',
+  'nav.insights': 'Learned',
   'nav.calendar': 'Calendar',
   'nav.proactive': 'Agent',
-  'nav.screenshots': 'Screenshots',
+  'nav.screenshots': 'Vision',
   'nav.settings': 'Settings',
 
   // Chat page
@@ -26,6 +26,11 @@ const en = {
   'chat.older': 'Older',
   'chat.deleteConversation': 'Delete',
   'chat.confirmDelete': 'Are you sure you want to delete this conversation?',
+  'chat.talkWithMe': 'Talk with Me',
+  'chat.welcomeAgent': 'I can search through your memories to find the best answers.',
+  'chat.welcomeAgentSub': 'Ask about past events, preferences, or activities!',
+  'chat.welcomeChat': 'Start a conversation and I\'ll remember everything.',
+  'chat.welcomeChatSub': 'Click on me to change my outfit!',
 
   // Memories page
   'memories.title': 'Memories',
@@ -121,6 +126,9 @@ const en = {
   // Settings page
   'settings.title': 'Settings',
   'settings.appearance': 'Appearance',
+  'settings.llmConfig': 'LLM Configuration',
+  'settings.appSettings': 'Application Settings',
+  'settings.storageInfo': 'Storage Info',
   'settings.theme': 'Theme',
   'settings.themeLight': 'Light',
   'settings.themeDark': 'Dark',
@@ -154,8 +162,14 @@ const en = {
   'settings.version': 'Version',
 
   // Screenshots page
-  'screenshots.title': 'Screenshots',
-  'screenshots.subtitle': 'Capture and manage screen activity',
+  'screenshots.title': 'My Journal',
+  'screenshots.subtitle': 'What I see and remember for you',
+  'screenshots.whereToLook': 'Where should I look?',
+  'screenshots.myJournal': 'My Journal',
+  'screenshots.takingNotes': 'Taking notes',
+  'screenshots.notRecording': 'Not recording',
+  'screenshots.startRecording': 'Start Recording',
+  'screenshots.pauseRecording': 'Pause',
   'screenshots.captureNow': 'Capture Now',
   'screenshots.start': 'Start',
   'screenshots.stop': 'Stop',
@@ -251,6 +265,13 @@ const en = {
   'time.hoursAgo': '{n} hours ago',
   'time.daysAgo': '{n} days ago',
   'time.weeksAgo': '{n} weeks ago',
+
+  // Pet
+  'pet.summon': 'Summon',
+  'pet.dismiss': 'Dismiss',
+  'pet.summonToDesktop': 'Summon to desktop',
+  'pet.dismissFromDesktop': 'Dismiss from desktop',
+  'pet.clickToChangeOutfit': 'Click to change outfit!',
 
   // Calendar page
   'calendar.title': 'Calendar',

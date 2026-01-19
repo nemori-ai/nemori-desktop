@@ -25,3 +25,9 @@ declare module '*.ico?asset' {
   const src: string
   export default src
 }
+
+// Regular SVG imports (as URL strings)
+declare module '*.svg' {
+  const src: string
+  export default src
+}

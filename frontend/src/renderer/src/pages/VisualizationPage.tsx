@@ -15,7 +15,8 @@ import {
   Users,
   GraduationCap,
   Gamepad2,
-  Sparkles
+  Sparkles,
+  Lightbulb
 } from 'lucide-react'
 import {
   api,
@@ -26,6 +27,7 @@ import {
   TimelineEvent
 } from '../services/api'
 import { useLanguage } from '../contexts/LanguageContext'
+import { NemoriBot } from '../components/NemoriBot'
 
 type TabType = 'overview' | 'timeline' | 'heatmap'
 
@@ -148,13 +150,21 @@ export default function VisualizationPage(): JSX.Element {
 
   return (
     <div className="h-full flex flex-col p-6 overflow-hidden">
-      {/* Header */}
+      {/* Header with Nemori branding */}
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">{t('insights.title')}</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            {t('insights.subtitle')}
-          </p>
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12">
+            <NemoriBot showStatus={false} size="lg" interactive={false} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Lightbulb className="w-6 h-6 text-primary" />
+              What I've Learned
+            </h1>
+            <p className="text-muted-foreground text-sm mt-0.5">
+              Patterns and insights from observing your journey
+            </p>
+          </div>
         </div>
         <button
           onClick={loadAllData}

@@ -1,0 +1,25 @@
+<svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+  <!-- Cat Ears (PICO-8 Dark Green) -->
+  <path d="M5 4h3v1h1v1h-4V4z" fill="#008751"/>
+  <path d="M16 4h3v2h-4V5h1V4z" fill="#008751"/>
+  <rect x="6" y="5" width="1" height="1" fill="#00E436"/> <!-- Ear Inner -->
+  <rect x="17" y="5" width="1" height="1" fill="#00E436"/> <!-- Ear Inner -->
+
+  <!-- Body -->
+  <rect x="4" y="6" width="16" height="11" fill="#008751"/>
+  
+  <!-- Screen (PICO-8 Dark Blue) -->
+  <rect x="6" y="8" width="12" height="7" fill="#1D2B53"/>
+  
+  <!-- Cat Face (PICO-8 Light Green) -->
+  <rect x="8" y="10" width="2" height="2" fill="#00E436"/>
+  <rect x="14" y="10" width="2" height="2" fill="#00E436"/>
+  <rect x="11" y="12" width="2" height="1" fill="#00E436"/> <!-- Mouth -->
+  
+  <!-- Whiskers (Dark Grey) -->
+  <rect x="4" y="11" width="1" height="1" fill="#5F574F"/>
+  <rect x="19" y="11" width="1" height="1" fill="#5F574F"/>
+
+  <!-- Shadow -->
+  <rect x="6" y="19" width="12" height="1" fill="#000000" opacity="0.2"/>
+</svg>

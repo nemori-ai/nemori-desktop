@@ -63,11 +63,20 @@ interface ScreenshotAPI {
   getCaptureStatus: () => Promise<ElectronCaptureStatus>
 }
 
+interface PetAPI {
+  summon: () => Promise<boolean>
+  close: () => Promise<boolean>
+  toggle: () => Promise<boolean>
+  isOpen: () => Promise<boolean>
+  move: (deltaX: number, deltaY: number) => void
+}
+
 interface CustomAPI {
   window: WindowAPI
   shell: ShellAPI
   app: AppAPI
   backend: BackendAPI
+  pet: PetAPI
   screenshot: ScreenshotAPI
   on: (channel: string, callback: (...args: any[]) => void) => void
   off: (channel: string, callback: (...args: any[]) => void) => void

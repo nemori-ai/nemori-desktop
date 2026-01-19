@@ -29,6 +29,15 @@ const api = {
     restart: () => ipcRenderer.invoke('backend:restart')
   },
 
+  // Pet window controls
+  pet: {
+    summon: () => ipcRenderer.invoke('pet:summon') as Promise<boolean>,
+    close: () => ipcRenderer.invoke('pet:close') as Promise<boolean>,
+    toggle: () => ipcRenderer.invoke('pet:toggle') as Promise<boolean>,
+    isOpen: () => ipcRenderer.invoke('pet:isOpen') as Promise<boolean>,
+    move: (deltaX: number, deltaY: number) => ipcRenderer.send('pet:move', deltaX, deltaY)
+  },
+
   // Screenshot service (captures from Electron main process)
   screenshot: {
     checkPermission: () =>
@@ -70,7 +79,7 @@ const api = {
 
   // Event listeners
   on: (channel: string, callback: (...args: any[]) => void) => {
-    const validChannels = ['navigate', 'screenshot-captured', 'backend-status']
+    const validChannels = ['navigate', 'screenshot-captured', 'backend-status', 'capture-status-changed', 'pet-status-changed']
     if (validChannels.includes(channel)) {
       ipcRenderer.on(channel, (_, ...args) => callback(...args))
     }

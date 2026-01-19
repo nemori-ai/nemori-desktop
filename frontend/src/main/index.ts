@@ -1,5 +1,6 @@
-import { app, shell, BrowserWindow, ipcMain, screen } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, screen, Menu } from 'electron'
 import { join } from 'path'
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 import icon from '../../resources/icon.png?asset'
 import { BackendService } from './services/BackendService'
 import { TrayService } from './services/TrayService'
@@ -58,9 +59,191 @@ const optimizer = {
 }
 
 let mainWindow: BrowserWindow | null = null
+let petWindow: BrowserWindow | null = null
 let trayService: TrayService | null = null
 let backendService: BackendService | null = null
 let screenshotService: ScreenshotService | null = null
+
+// Simple file-based store for persisting pet position
+const petConfigPath = (): string => join(app.getPath('userData'), 'pet-config.json')
+
+function getPetConfig(): { petPosition: { x: number; y: number } | null } {
+  try {
+    const configPath = petConfigPath()
+    if (existsSync(configPath)) {
+      return JSON.parse(readFileSync(configPath, 'utf-8'))
+    }
+  } catch (e) {
+    console.error('Failed to read pet config:', e)
+  }
+  return { petPosition: null }
+}
+
+function savePetConfig(config: { petPosition: { x: number; y: number } | null }): void {
+  try {
+    const configPath = petConfigPath()
+    const dir = join(app.getPath('userData'))
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true })
+    }
+    writeFileSync(configPath, JSON.stringify(config, null, 2))
+  } catch (e) {
+    console.error('Failed to save pet config:', e)
+  }
+}
+
+// Create desktop pet window
+function createPetWindow(): void {
+  if (petWindow && !petWindow.isDestroyed()) {
+    petWindow.focus()
+    return
+  }
+
+  const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize
+  const savedPosition = getPetConfig().petPosition
+
+  // Default position: bottom right corner
+  const defaultX = screenWidth - 200
+  const defaultY = screenHeight - 250
+
+  petWindow = new BrowserWindow({
+    width: 140,
+    height: 160,
+    x: savedPosition?.x ?? defaultX,
+    y: savedPosition?.y ?? defaultY,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: false,
+    skipTaskbar: true,
+    hasShadow: false,
+    focusable: true,
+    // Higher level to stay above fullscreen apps
+    ...(process.platform === 'darwin' ? {
+      type: 'panel' // macOS: panel windows float above other apps
+    } : {}),
+    // macOS specific for better transparency
+    ...(process.platform === 'darwin' ? {
+      vibrancy: undefined,
+      visualEffectState: 'active',
+      backgroundColor: '#00000000'
+    } : {
+      backgroundColor: '#00000000'
+    }),
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  })
+
+  // Load pet page
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    petWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#/pet`)
+  } else {
+    petWindow.loadFile(join(__dirname, '../renderer/index.html'), { hash: '/pet' })
+  }
+
+  // Set to float above fullscreen apps (macOS)
+  if (process.platform === 'darwin') {
+    petWindow.setAlwaysOnTop(true, 'screen-saver')
+    petWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  }
+
+  // Save position when window is moved
+  petWindow.on('moved', () => {
+    if (petWindow && !petWindow.isDestroyed()) {
+      const [x, y] = petWindow.getPosition()
+      savePetConfig({ petPosition: { x, y } })
+    }
+  })
+
+  petWindow.on('closed', () => {
+    petWindow = null
+    // Notify main window that pet was closed
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('pet-status-changed', false)
+    }
+  })
+
+  // Right-click context menu - friendly language
+  petWindow.webContents.on('context-menu', () => {
+    const isCapturing = screenshotService?.getCaptureStatus()?.isCapturing ?? false
+
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: '📖 我的日记 / My Journal',
+        click: () => {
+          if (mainWindow) {
+            mainWindow.show()
+            mainWindow.webContents.send('navigate', '/screenshots')
+          }
+        }
+      },
+      {
+        label: '💬 和我聊天 / Talk with Me',
+        click: () => {
+          if (mainWindow) {
+            mainWindow.show()
+            mainWindow.webContents.send('navigate', '/chat')
+          }
+        }
+      },
+      {
+        label: '💡 我学到的 / What I Learned',
+        click: () => {
+          if (mainWindow) {
+            mainWindow.show()
+            mainWindow.webContents.send('navigate', '/insights')
+          }
+        }
+      },
+      { type: 'separator' },
+      {
+        label: isCapturing ? '⏸ 暂停记录 / Pause' : '▶ 开始记录 / Start',
+        click: async () => {
+          if (isCapturing) {
+            await screenshotService?.stopCapture()
+          } else {
+            await screenshotService?.startCapture()
+          }
+          // Notify pet window of state change
+          petWindow?.webContents.send('capture-status-changed', !isCapturing)
+        }
+      },
+      { type: 'separator' },
+      {
+        label: '🏠 打开 Nemori / Open',
+        click: () => {
+          if (mainWindow) {
+            mainWindow.show()
+            mainWindow.focus()
+          }
+        }
+      },
+      {
+        label: '👋 收起 / Dismiss',
+        click: () => {
+          closePetWindow()
+        }
+      }
+    ])
+
+    contextMenu.popup({ window: petWindow! })
+  })
+}
+
+function closePetWindow(): void {
+  if (petWindow && !petWindow.isDestroyed()) {
+    petWindow.close()
+    petWindow = null
+  }
+}
+
+function isPetWindowOpen(): boolean {
+  return petWindow !== null && !petWindow.isDestroyed()
+}
 
 function createWindow(): void {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize
@@ -230,6 +413,38 @@ function setupIpcHandlers(): void {
 
   ipcMain.handle('screenshot:getCaptureStatus', () => {
     return screenshotService?.getCaptureStatus()
+  })
+
+  // Pet window handlers
+  ipcMain.handle('pet:summon', () => {
+    createPetWindow()
+    return true
+  })
+
+  ipcMain.handle('pet:close', () => {
+    closePetWindow()
+    return true
+  })
+
+  ipcMain.handle('pet:toggle', () => {
+    if (isPetWindowOpen()) {
+      closePetWindow()
+    } else {
+      createPetWindow()
+    }
+    return isPetWindowOpen()
+  })
+
+  ipcMain.handle('pet:isOpen', () => {
+    return isPetWindowOpen()
+  })
+
+  // Pet window movement (for dragging)
+  ipcMain.on('pet:move', (_, deltaX: number, deltaY: number) => {
+    if (petWindow && !petWindow.isDestroyed()) {
+      const [x, y] = petWindow.getPosition()
+      petWindow.setPosition(x + deltaX, y + deltaY)
+    }
   })
 
   console.log('IPC handlers registered')

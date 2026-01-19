@@ -4,8 +4,9 @@ import {
   Briefcase, DollarSign, HeartPulse, Home, Users, GraduationCap, Gamepad2, Sparkles,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   FileText, FolderOpen, Edit3, Eye, Save, ChevronDown, ChevronUp, Code, BookOpen,
-  Zap
+  Zap, Library
 } from 'lucide-react'
+import { NemoriBot } from '../components/NemoriBot'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -274,15 +275,25 @@ export default function MemoriesPage(): JSX.Element {
   const episodicTotalPages = Math.ceil(totalEpisodicCount / PAGE_SIZE)
   const semanticTotalPages = Math.ceil(totalSemanticCount / PAGE_SIZE)
 
+  const isZh = language === 'zh'
+
   return (
     <div className="h-full flex flex-col p-6">
-      {/* Header */}
+      {/* Header with Nemori branding */}
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Memories</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Browse and search your personal knowledge base
-          </p>
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12">
+            <NemoriBot showStatus={false} size="lg" interactive={false} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Library className="w-6 h-6 text-primary" />
+              {isZh ? '我的记忆库' : 'My Memory Library'}
+            </h1>
+            <p className="text-muted-foreground text-sm mt-0.5">
+              {isZh ? '我帮你记住的所有事情' : 'Everything I remember for you'}
+            </p>
+          </div>
         </div>
         <button
           onClick={handleRefresh}
@@ -290,7 +301,7 @@ export default function MemoriesPage(): JSX.Element {
           className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-muted/60 hover:bg-muted transition-all duration-200 disabled:opacity-50 shadow-warm-sm"
         >
           <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-          <span>Refresh</span>
+          <span>{isZh ? '刷新' : 'Refresh'}</span>
         </button>
       </div>
 
@@ -302,7 +313,7 @@ export default function MemoriesPage(): JSX.Element {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Search your memories..."
+          placeholder={isZh ? '搜索记忆...' : 'Search memories...'}
           className="w-full pl-11 pr-4 py-3 rounded-lg border border-input/50 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 shadow-warm-sm transition-all duration-200"
         />
       </div>

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Routes, Route, useNavigate } from 'react-router-dom'
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import { ConfigProvider, theme } from 'antd'
 import Layout from './components/Layout'
 import ChatPage from './pages/ChatPage'
@@ -8,12 +8,18 @@ import SettingsPage from './pages/SettingsPage'
 import ScreenshotsPage from './pages/ScreenshotsPage'
 import VisualizationPage from './pages/VisualizationPage'
 import ProactivePage from './pages/ProactivePage'
+import PetPage from './pages/PetPage'
 import { ThemeProvider, useTheme } from './contexts/ThemeContext'
 import { LanguageProvider } from './contexts/LanguageContext'
+import { AgentProvider } from './contexts/AgentContext'
 
 function AppContent(): JSX.Element {
   const navigate = useNavigate()
+  const location = useLocation()
   const { isDark } = useTheme()
+
+  // Check if we're in pet window mode (supports both hash and browser routing)
+  const isPetWindow = location.pathname === '/pet' || location.hash === '#/pet' || window.location.hash === '#/pet'
 
   useEffect(() => {
     // Listen for navigation events from main process
@@ -25,6 +31,11 @@ function AppContent(): JSX.Element {
       window.api.off('navigate', () => {})
     }
   }, [navigate])
+
+  // Pet window has its own minimal UI
+  if (isPetWindow) {
+    return <PetPage />
+  }
 
   return (
     <ConfigProvider
@@ -60,7 +71,9 @@ function App(): JSX.Element {
   return (
     <ThemeProvider>
       <LanguageProvider>
-        <AppContent />
+        <AgentProvider>
+          <AppContent />
+        </AgentProvider>
       </LanguageProvider>
     </ThemeProvider>
   )

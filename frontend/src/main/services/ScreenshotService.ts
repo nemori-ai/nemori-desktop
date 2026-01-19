@@ -1,7 +1,11 @@
-import { desktopCapturer, screen, systemPreferences, app } from 'electron'
+import { desktopCapturer, screen, systemPreferences, app, powerMonitor } from 'electron'
 import http from 'http'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
+
+// Idle detection configuration
+const IDLE_THRESHOLD_SECONDS = 60 // Pause capture if user is idle for 60 seconds
+const IDLE_CHECK_INTERVAL_MS = 5000 // Check idle status every 5 seconds
 
 export interface MonitorInfo {
   id: string
@@ -40,6 +44,12 @@ export class ScreenshotService {
   private getBackendUrl: () => string
   private prefsPath: string
 
+  // Idle detection state
+  private isPausedDueToIdle: boolean = false
+  private idleCheckInterval: NodeJS.Timeout | null = null
+  private isSystemLocked: boolean = false
+  private isSystemSuspended: boolean = false
+
   /**
    * Create a ScreenshotService with a dynamic backend URL getter
    * @param getBackendUrl - Function that returns the current backend URL (required)
@@ -51,6 +61,114 @@ export class ScreenshotService {
     this.prefsPath = join(app.getPath('userData'), MONITOR_PREFS_FILE)
     // Load saved preferences on startup
     this.loadMonitorPreferences()
+    // Set up system event listeners for idle detection
+    this.setupSystemEventListeners()
+  }
+
+  /**
+   * Set up listeners for system events (lock screen, suspend, etc.)
+   */
+  private setupSystemEventListeners(): void {
+    // Listen for screen lock/unlock events
+    powerMonitor.on('lock-screen', () => {
+      console.log('System locked - pausing screenshot capture')
+      this.isSystemLocked = true
+      this.pauseForIdleState()
+    })
+
+    powerMonitor.on('unlock-screen', () => {
+      console.log('System unlocked - resuming screenshot capture')
+      this.isSystemLocked = false
+      this.resumeFromIdleState()
+    })
+
+    // Listen for system suspend/resume events
+    powerMonitor.on('suspend', () => {
+      console.log('System suspended - pausing screenshot capture')
+      this.isSystemSuspended = true
+      this.pauseForIdleState()
+    })
+
+    powerMonitor.on('resume', () => {
+      console.log('System resumed - resuming screenshot capture')
+      this.isSystemSuspended = false
+      this.resumeFromIdleState()
+    })
+
+    console.log('System event listeners set up for idle detection')
+  }
+
+  /**
+   * Check if user is currently idle (no keyboard/mouse activity)
+   */
+  private isUserIdle(): boolean {
+    const idleTime = powerMonitor.getSystemIdleTime()
+    return idleTime >= IDLE_THRESHOLD_SECONDS
+  }
+
+  /**
+   * Check if capture should be paused due to any idle state
+   */
+  private shouldPauseCapture(): boolean {
+    return this.isSystemLocked || this.isSystemSuspended || this.isUserIdle()
+  }
+
+  /**
+   * Pause capture due to idle state
+   */
+  private pauseForIdleState(): void {
+    if (this.isCapturing && !this.isPausedDueToIdle) {
+      this.isPausedDueToIdle = true
+      console.log('Screenshot capture paused due to idle state')
+    }
+  }
+
+  /**
+   * Resume capture from idle state
+   */
+  private resumeFromIdleState(): void {
+    // Only resume if there's no other reason to stay paused
+    if (this.isPausedDueToIdle && !this.shouldPauseCapture()) {
+      this.isPausedDueToIdle = false
+      console.log('Screenshot capture resumed from idle state')
+    }
+  }
+
+  /**
+   * Start idle checking interval
+   */
+  private startIdleChecker(): void {
+    if (this.idleCheckInterval) {
+      return
+    }
+
+    this.idleCheckInterval = setInterval(() => {
+      if (this.isUserIdle()) {
+        if (!this.isPausedDueToIdle) {
+          console.log(`User idle for ${powerMonitor.getSystemIdleTime()}s - pausing capture`)
+          this.pauseForIdleState()
+        }
+      } else {
+        // User is active again
+        if (this.isPausedDueToIdle && !this.isSystemLocked && !this.isSystemSuspended) {
+          console.log('User activity detected - resuming capture')
+          this.resumeFromIdleState()
+        }
+      }
+    }, IDLE_CHECK_INTERVAL_MS)
+
+    console.log('Idle checker started')
+  }
+
+  /**
+   * Stop idle checking interval
+   */
+  private stopIdleChecker(): void {
+    if (this.idleCheckInterval) {
+      clearInterval(this.idleCheckInterval)
+      this.idleCheckInterval = null
+      console.log('Idle checker stopped')
+    }
   }
 
   /**
@@ -365,17 +483,26 @@ export class ScreenshotService {
     }
 
     this.isCapturing = true
+    this.isPausedDueToIdle = false
 
-    // Capture immediately on start (non-blocking)
-    console.log('Capturing first screenshot immediately...')
-    this.captureAndUpload().catch((err) => console.error('First capture failed:', err))
+    // Start idle detection
+    this.startIdleChecker()
+
+    // Capture immediately on start (non-blocking) - only if not idle
+    if (!this.shouldPauseCapture()) {
+      console.log('Capturing first screenshot immediately...')
+      this.captureAndUpload().catch((err) => console.error('First capture failed:', err))
+    } else {
+      console.log('User is idle - skipping first capture')
+      this.isPausedDueToIdle = true
+    }
 
     // Then set up interval for subsequent captures
     this.captureInterval = setInterval(async () => {
       await this.captureAndUpload()
     }, this.intervalMs)
 
-    console.log(`Screenshot capture started with interval ${this.intervalMs}ms`)
+    console.log(`Screenshot capture started with interval ${this.intervalMs}ms (with idle detection)`)
     return true
   }
 
@@ -392,6 +519,10 @@ export class ScreenshotService {
       this.captureInterval = null
     }
 
+    // Stop idle detection
+    this.stopIdleChecker()
+    this.isPausedDueToIdle = false
+
     this.isCapturing = false
     console.log('Screenshot capture stopped')
     return true
@@ -400,10 +531,11 @@ export class ScreenshotService {
   /**
    * Get capture status
    */
-  getCaptureStatus(): { isCapturing: boolean; intervalMs: number } {
+  getCaptureStatus(): { isCapturing: boolean; intervalMs: number; isPausedDueToIdle: boolean } {
     return {
       isCapturing: this.isCapturing,
-      intervalMs: this.intervalMs
+      intervalMs: this.intervalMs,
+      isPausedDueToIdle: this.isPausedDueToIdle
     }
   }
 
@@ -413,6 +545,12 @@ export class ScreenshotService {
    * Each monitor has its own deduplication channel on the backend
    */
   private async captureAndUpload(): Promise<void> {
+    // Skip capture if paused due to idle state
+    if (this.isPausedDueToIdle) {
+      // Silently skip - don't spam logs
+      return
+    }
+
     try {
       console.log('Starting capture for all selected monitors...')
       const results = await this.captureAllSelected()

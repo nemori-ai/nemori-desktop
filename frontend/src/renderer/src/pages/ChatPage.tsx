@@ -4,6 +4,8 @@ import { Send, Plus, Trash2, Loader2, Bot, MessageCircle, ChevronDown, ChevronRi
 import MarkdownIt from 'markdown-it'
 import { api, Message, Conversation, AgentStreamEvent, AgentToolCall } from '../services/api'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAgent } from '../contexts/AgentContext'
+import { NemoriBot } from '../components/NemoriBot'
 
 // Pagination config for messages
 const MESSAGES_PAGE_SIZE = 50
@@ -279,6 +281,7 @@ export default function ChatPage(): JSX.Element {
   const { conversationId } = useParams()
   const navigate = useNavigate()
   const { t } = useLanguage()
+  const { setThinking: setNemoriThinking, setMood } = useAgent()
 
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [currentConversation, setCurrentConversation] = useState<string | null>(conversationId || null)
@@ -580,6 +583,7 @@ export default function ChatPage(): JSX.Element {
     const userMessage = input.trim()
     setInput('')
     setIsLoading(true)
+    setNemoriThinking(true) // Nemori starts thinking
 
     // Add user message to UI immediately
     const tempUserMessage: Message = {
@@ -695,6 +699,10 @@ export default function ChatPage(): JSX.Element {
       setIsLoading(false)
       setIsStreaming(false)
       setIsThinking(false)
+      setNemoriThinking(false) // Nemori stops thinking
+      setMood('happy') // Nemori is happy after responding
+      // Reset mood after a short delay
+      setTimeout(() => setMood('idle'), 3000)
     }
   }
 
@@ -825,20 +833,24 @@ export default function ChatPage(): JSX.Element {
 
           {messages.length === 0 && !isStreaming ? (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+              <div className="w-24 h-24 mb-6">
+                <NemoriBot showStatus={false} size="xl" />
+              </div>
               {isAgentMode ? (
                 <>
-                  <Bot className="w-16 h-16 mb-4 opacity-50" />
-                  <h2 className="text-xl font-semibold mb-2">Agent Mode</h2>
+                  <h2 className="text-xl font-semibold mb-2">{t('chat.talkWithMe')}</h2>
                   <p className="text-sm text-center max-w-md">
-                    I can search through your memories using various tools to find the best answers.
-                    Try asking about past events, preferences, or activities!
+                    {t('chat.welcomeAgent')}
+                    <br />{t('chat.welcomeAgentSub')}
                   </p>
                 </>
               ) : (
                 <>
-                  <MessageIcon className="w-16 h-16 mb-4 opacity-50" />
-                  <h2 className="text-xl font-semibold mb-2">Welcome to Nemori</h2>
-                  <p className="text-sm">Start a conversation or ask me anything!</p>
+                  <h2 className="text-xl font-semibold mb-2">{t('chat.talkWithMe')}</h2>
+                  <p className="text-sm text-center max-w-md">
+                    {t('chat.welcomeChat')}
+                    <br />{t('chat.welcomeChatSub')}
+                  </p>
                 </>
               )}
             </div>

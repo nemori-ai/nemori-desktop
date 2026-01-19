@@ -6,10 +6,10 @@ const zh = {
   // Navigation
   'nav.chat': '对话',
   'nav.memories': '记忆',
-  'nav.insights': '洞察',
+  'nav.insights': '所学',
   'nav.calendar': '日历',
   'nav.proactive': '智能体',
-  'nav.screenshots': '截图',
+  'nav.screenshots': '视野',
   'nav.settings': '设置',
 
   // Chat page
@@ -26,6 +26,11 @@ const zh = {
   'chat.older': '更早',
   'chat.deleteConversation': '删除',
   'chat.confirmDelete': '确定要删除这个对话吗？',
+  'chat.talkWithMe': '和我聊天',
+  'chat.welcomeAgent': '我可以搜索你的记忆来找到最佳答案。',
+  'chat.welcomeAgentSub': '问问过去的事件、偏好或活动吧！',
+  'chat.welcomeChat': '开始对话，我会记住一切。',
+  'chat.welcomeChatSub': '点击我换装！',
 
   // Memories page
   'memories.title': '记忆',
@@ -121,6 +126,9 @@ const zh = {
   // Settings page
   'settings.title': '设置',
   'settings.appearance': '外观',
+  'settings.llmConfig': 'LLM 配置',
+  'settings.appSettings': '应用设置',
+  'settings.storageInfo': '存储信息',
   'settings.theme': '主题',
   'settings.themeLight': '浅色',
   'settings.themeDark': '深色',
@@ -154,8 +162,14 @@ const zh = {
   'settings.version': '版本',
 
   // Screenshots page
-  'screenshots.title': '截图',
-  'screenshots.subtitle': '采集和管理屏幕活动',
+  'screenshots.title': '我的日记',
+  'screenshots.subtitle': '我看到的和为你记住的',
+  'screenshots.whereToLook': '我应该看哪里？',
+  'screenshots.myJournal': '我的日记',
+  'screenshots.takingNotes': '正在记录',
+  'screenshots.notRecording': '未在记录',
+  'screenshots.startRecording': '开始记录',
+  'screenshots.pauseRecording': '暂停',
   'screenshots.captureNow': '立即采集',
   'screenshots.start': '开始',
   'screenshots.stop': '停止',
@@ -251,6 +265,13 @@ const zh = {
   'time.hoursAgo': '{n} 小时前',
   'time.daysAgo': '{n} 天前',
   'time.weeksAgo': '{n} 周前',
+
+  // Pet
+  'pet.summon': '召唤',
+  'pet.dismiss': '收起',
+  'pet.summonToDesktop': '召唤到桌面',
+  'pet.dismissFromDesktop': '从桌面收起',
+  'pet.clickToChangeOutfit': '点击换装！',
 
   // Calendar page
   'calendar.title': '日历',

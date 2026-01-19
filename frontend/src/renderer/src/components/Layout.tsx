@@ -1,20 +1,21 @@
-import { ReactNode, useState } from 'react'
+import { ReactNode, useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   MessageSquare,
   Brain,
-  Image,
+  Eye,
   Settings,
   ChevronLeft,
   ChevronRight,
   Minus,
   Square,
   X,
-  BarChart2,
-  Zap
+  Lightbulb,
+  Sparkles
 } from 'lucide-react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { TranslationKey } from '../i18n'
+import { NemoriBot } from './NemoriBot'
 
 interface LayoutProps {
   children: ReactNode
@@ -29,8 +30,8 @@ interface NavItem {
 const navItems: NavItem[] = [
   { path: '/chat', icon: MessageSquare, labelKey: 'nav.chat' },
   { path: '/memories', icon: Brain, labelKey: 'nav.memories' },
-  { path: '/insights', icon: BarChart2, labelKey: 'nav.insights' },
-  { path: '/screenshots', icon: Image, labelKey: 'nav.screenshots' },
+  { path: '/insights', icon: Lightbulb, labelKey: 'nav.insights' },
+  { path: '/screenshots', icon: Eye, labelKey: 'nav.screenshots' },
   { path: '/settings', icon: Settings, labelKey: 'nav.settings' }
 ]
 
@@ -41,7 +42,28 @@ export default function Layout({ children }: LayoutProps): JSX.Element {
   const navigate = useNavigate()
   const location = useLocation()
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isPetSummoned, setIsPetSummoned] = useState(false)
   const { t } = useLanguage()
+
+  // Check pet window status on mount and listen for changes
+  useEffect(() => {
+    window.api.pet.isOpen().then(setIsPetSummoned)
+
+    // Listen for pet status changes (e.g., when closed from desktop)
+    const handlePetStatusChange = (isOpen: boolean) => {
+      setIsPetSummoned(isOpen)
+    }
+    window.api.on('pet-status-changed', handlePetStatusChange)
+
+    return () => {
+      window.api.off('pet-status-changed', handlePetStatusChange)
+    }
+  }, [])
+
+  const handleSummonPet = async (): Promise<void> => {
+    const isOpen = await window.api.pet.toggle()
+    setIsPetSummoned(isOpen)
+  }
 
   const handleMinimize = (): void => {
     window.api.window.minimize()
@@ -118,6 +140,26 @@ export default function Layout({ children }: LayoutProps): JSX.Element {
             )
           })}
         </nav>
+
+        {/* Nemori Bot Avatar */}
+        <div className={`px-3 py-4 flex flex-col items-center gap-2 border-t border-border/50`}>
+          <div className={`${isCollapsed ? 'w-12 h-12' : 'w-32 h-32'} transition-all duration-300 flex items-center justify-center`}>
+            <NemoriBot showStatus={false} size={isCollapsed ? 'md' : 'xl'} />
+          </div>
+          {/* Summon to Desktop Button */}
+          <button
+            onClick={handleSummonPet}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+              isPetSummoned
+                ? 'bg-primary/20 text-primary'
+                : 'bg-muted/60 text-muted-foreground hover:bg-primary/10 hover:text-primary'
+            }`}
+            title={isPetSummoned ? t('pet.dismissFromDesktop') : t('pet.summonToDesktop')}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            {!isCollapsed && (isPetSummoned ? t('pet.dismiss') : t('pet.summon'))}
+          </button>
+        </div>
 
         {/* Collapse toggle */}
         <div className="p-3 border-t border-border/50">

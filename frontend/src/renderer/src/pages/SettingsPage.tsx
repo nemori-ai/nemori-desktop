@@ -184,7 +184,7 @@ export default function SettingsPage(): JSX.Element {
       <div className="max-w-2xl mx-auto space-y-8">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold">Settings</h1>
+          <h1 className="text-2xl font-bold">{t('settings.title')}</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Configure Nemori to work with your preferred AI provider
           </p>
@@ -249,7 +249,7 @@ export default function SettingsPage(): JSX.Element {
         {/* LLM Configuration */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">LLM Configuration</h2>
+            <h2 className="text-lg font-semibold">{t('settings.llmConfig')}</h2>
             <div className="flex items-center gap-2">
               <div
                 className={`w-2.5 h-2.5 rounded-full ${llmConfigured ? 'bg-primary' : 'bg-amber-500'}`}
@@ -468,7 +468,7 @@ export default function SettingsPage(): JSX.Element {
 
         {/* App Settings */}
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Application Settings</h2>
+          <h2 className="text-lg font-semibold">{t('settings.appSettings')}</h2>
 
           <div className="space-y-4 p-5 rounded-xl glass-card">
             {/* Capture Interval */}
@@ -578,7 +578,7 @@ export default function SettingsPage(): JSX.Element {
         {/* Data Directory Info */}
         {appSettings && (
           <section className="space-y-4">
-            <h2 className="text-lg font-semibold">Storage Info</h2>
+            <h2 className="text-lg font-semibold">{t('settings.storageInfo')}</h2>
             <div className="p-5 rounded-xl glass-card">
               <InfoRow label="Data Directory" value={appSettings.data_dir} />
             </div>
@@ -587,7 +587,7 @@ export default function SettingsPage(): JSX.Element {
 
         {/* About */}
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold">About</h2>
+          <h2 className="text-lg font-semibold">{t('settings.about')}</h2>
 
           <div className="p-5 rounded-xl glass-card space-y-3">
             <InfoRow label="Application" value="Nemori" />
