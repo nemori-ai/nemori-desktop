@@ -1,10 +1,184 @@
-# Nemori
+<p align="center">
+  <img src="frontend/resources/icon.png" alt="Nemori Logo" width="128" height="128">
+</p>
 
-AI-powered personal memory assistant desktop application.
+<h1 align="center">Nemori</h1>
 
-## Architecture
+<p align="center">
+  <strong>Your AI-powered memory companion that remembers what you do, so you don't have to.</strong>
+</p>
 
-Nemori follows a **frontend-backend separation** architecture:
+<p align="center">
+  <a href="https://github.com/nemori-ai/nemori-desktop/releases">
+    <img src="https://img.shields.io/github/v/release/nemori-ai/nemori-desktop?style=flat-square" alt="Release">
+  </a>
+  <a href="https://github.com/nemori-ai/nemori-desktop/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/nemori-ai/nemori-desktop?style=flat-square" alt="License">
+  </a>
+  <a href="https://github.com/nemori-ai/nemori-desktop/stargazers">
+    <img src="https://img.shields.io/github/stars/nemori-ai/nemori-desktop?style=flat-square" alt="Stars">
+  </a>
+</p>
+
+<p align="center">
+  <a href="./assets/README_CN.md">🇨🇳 中文文档</a>
+</p>
+
+---
+
+## ✨ What is Nemori?
+
+Nemori is a **local-first** desktop application that acts as your personal memory assistant. It quietly observes your screen activity, builds a searchable memory of your digital life, and helps you recall anything through natural conversation.
+
+Think of it as having a friendly companion who:
+- 📸 **Watches** your screen and takes notes automatically
+- 🧠 **Remembers** what you've been working on
+- 💬 **Chats** with you about your memories
+- 🔒 **Keeps** everything private on your local machine
+
+## 🎯 Features
+
+### 🤖 Desktop Pet
+A cute floating companion that lives on your desktop, showing recording status. Right-click for quick access to all features.
+
+<p align="center">
+  <img src="assets/screenshot-pet.png" alt="Desktop Pet" width="200">
+</p>
+
+### 💬 AI Chat with Memory
+Have natural conversations with an AI that actually knows what you've been doing. Ask questions like "What was I working on yesterday?" or "Find that website I visited last week."
+
+<p align="center">
+  <img src="assets/screenshot-chat.png" alt="Chat Interface" width="700">
+</p>
+
+### 📖 My Journal
+Review your daily activities through an intelligent journal that automatically captures and organizes your screen activity.
+
+<p align="center">
+  <img src="assets/screenshot-journal.png" alt="Journal View" width="700">
+</p>
+
+### 🧠 Memory Explorer
+Browse and search through your episodic memories, semantic knowledge, and personal profile. Memories are automatically categorized into 8 life dimensions: Career, Finance, Health, Family, Social, Growth, Leisure, and Spirit.
+
+<p align="center">
+  <img src="assets/screenshot-memories.png" alt="Memory Explorer" width="700">
+</p>
+
+### 💡 Insights
+Discover patterns in your behavior with AI-generated insights about your work habits, interests, and preferences.
+
+<p align="center">
+  <img src="assets/screenshot-insights.png" alt="Insights" width="700">
+</p>
+
+### 🔐 Privacy First
+- All data stored locally on your machine
+- No cloud sync, no tracking
+- You control your memories
+
+## 🚀 Quick Start
+
+### 1. Download
+
+Download the latest release for your platform from [GitHub Releases](https://github.com/nemori-ai/nemori-desktop/releases).
+
+| Platform | Download |
+|----------|----------|
+| macOS (Apple Silicon) | `Nemori-x.x.x-arm64.dmg` |
+| macOS (Intel) | `Nemori-x.x.x-x64.dmg` |
+| Windows | `Nemori-x.x.x-setup.exe` |
+| Linux | `Nemori-x.x.x.AppImage` |
+
+### 2. Install
+
+**macOS:**
+1. Open the DMG and drag Nemori to Applications
+2. If you see "Nemori is damaged", run in Terminal:
+   ```bash
+   xattr -cr /Applications/Nemori.app
+   ```
+
+**Windows:** Run the installer and follow the prompts.
+
+**Linux:** Make executable with `chmod +x` and run.
+
+### 3. Configure
+
+1. Open Nemori and go to **Settings**
+2. Enter your LLM API credentials (supports OpenAI-compatible APIs)
+3. Grant screen recording permission when prompted
+4. Click **Start Recording** to begin
+
+<p align="center">
+  <img src="assets/screenshot-settings.png" alt="Settings" width="700">
+</p>
+
+### 4. Enjoy!
+
+- 🐾 **Summon the pet** from the sidebar to keep Nemori on your desktop
+- 💬 **Chat** to ask questions about your activities
+- 📖 **Browse journal** to review your day
+- 💡 **Check insights** to discover patterns
+
+## ⚙️ Configuration
+
+### LLM Settings
+
+Nemori requires an LLM API for chat and embedding. We recommend [OpenRouter](https://openrouter.ai) for easy access to multiple models.
+
+| Setting | Recommended Value |
+|---------|-------------------|
+| Chat Model | `google/gemini-3-flash-preview` |
+| Embedding Model | `google/gemini-embedding-001` |
+
+### Data Storage
+
+Your data is stored locally:
+- **macOS/Linux:** `~/.local/share/Nemori/`
+- **Windows:** `%APPDATA%/Nemori/`
+
+## 🛠️ Development
+
+### Prerequisites
+
+- Node.js 18+
+- Python 3.12+
+
+### Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/nemori-ai/nemori-desktop.git
+cd nemori-desktop
+
+# Install backend dependencies
+cd backend
+pip install -e .
+
+# Install frontend dependencies
+cd ../frontend
+npm install
+
+# Start development
+npm run dev
+```
+
+### Build
+
+```bash
+# macOS
+npm run build:mac
+
+# Windows
+npm run build:win
+
+# Linux
+npm run build:linux
+```
+
+## 🏗️ Architecture
 
 ```
 ┌─────────────────────────────────────────┐
@@ -12,203 +186,36 @@ Nemori follows a **frontend-backend separation** architecture:
 │  (React + TypeScript + Tailwind CSS)    │
 ├─────────────────────────────────────────┤
 │           Electron Main Process         │
-│    (Window management, Backend launch)  │
+│   (Window management, Desktop Pet)      │
 └─────────────────┬───────────────────────┘
-                  │ HTTP/WebSocket
+                  │ HTTP/REST
                   ▼
 ┌─────────────────────────────────────────┐
 │          Python Backend                 │
 │    (FastAPI + SQLite + ChromaDB)        │
 ├─────────────────────────────────────────┤
-│  - LLM Service (OpenAI compatible)      │
-│  - Memory Service (Episodic/Semantic)   │
-│  - Screenshot Service                   │
-│  - Vector Search (ChromaDB)             │
+│  • LLM Service (OpenAI compatible)      │
+│  • Memory Service (Episodic/Semantic)   │
+│  • Screenshot Capture & Analysis        │
+│  • Vector Search (ChromaDB)             │
 └─────────────────────────────────────────┘
 ```
 
-## Features
+## 📄 License
 
-- **AI Chat**: Conversational interface with memory-augmented responses
-- **Memory System**:
-  - Episodic memories (events, conversations)
-  - Semantic memories (knowledge, preferences)
-- **Screenshot Capture**: Automatic screen activity tracking
-- **Vector Search**: Semantic similarity search using ChromaDB
-- **Local-first**: All data stored locally on your machine
+Apache License 2.0 - see [LICENSE](LICENSE) for details.
 
-## Download & Install
+## 🤝 Contributing
 
-Download the latest release from [GitHub Releases](https://github.com/nemori-ai/nemori-desktop/releases).
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-### macOS
+## 💖 Acknowledgments
 
-1. Download `nemori-x.x.x-arm64.dmg` (Apple Silicon) or `nemori-x.x.x-x64.dmg` (Intel)
-2. Open the DMG and drag Nemori to Applications
-3. **Important**: If you see "Nemori is damaged" or "can't be opened", run this command in Terminal:
-   ```bash
-   xattr -cr /Applications/Nemori.app
-   ```
-4. Open Nemori from Applications
+Built with ❤️ by [nemori-ai](https://github.com/nemori-ai)
 
-### Windows
+### Inspired By
 
-1. Download `nemori-x.x.x-setup.exe`
-2. Run the installer and follow the prompts
+This project was inspired by and references techniques from:
 
-### Linux
-
-1. Download `nemori-x.x.x.AppImage`
-2. Make it executable: `chmod +x nemori-*.AppImage`
-3. Run the AppImage
-
-## Development
-
-### Prerequisites
-
-- Node.js 18+
-- Python 3.10+
-- pnpm (recommended) or npm
-
-### 1. Install Backend Dependencies
-
-```bash
-cd backend
-pip install -e .
-```
-
-### 2. Install Frontend Dependencies
-
-```bash
-cd frontend
-pnpm install
-# or
-npm install
-```
-
-## Development
-
-### Start Backend (in one terminal)
-
-```bash
-cd backend
-python main.py --reload
-```
-
-### Start Frontend (in another terminal)
-
-```bash
-cd frontend
-pnpm dev
-# or
-npm run dev
-```
-
-The application will automatically connect to the backend using a random available port (both development and production modes).
-
-## Configuration
-
-### LLM Settings
-
-Configure your LLM settings in the Settings page of the application. You can configure separate API keys and endpoints for chat and embedding models:
-
-**Chat Model Configuration:**
-- Chat API Key
-- Chat Base URL (e.g., `https://openrouter.ai/api/v1`)
-- Chat Model (recommended: `google/gemini-3-flash-preview`)
-
-**Embedding Model Configuration:**
-- Embedding API Key
-- Embedding Base URL (e.g., `https://openrouter.ai/api/v1`)
-- Embedding Model (recommended: `google/gemini-embedding-001`)
-
-> **Note:** OpenRouter supports embedding models including `google/gemini-embedding-001` and `baai/bge-base-en-v1.5`. The embedding dimension is automatically adapted based on the model.
-
-Or set environment variables:
-
-```bash
-# Chat Model
-export CHAT_API_KEY="your-chat-api-key"
-export CHAT_BASE_URL="https://openrouter.ai/api/v1"
-export CHAT_MODEL="google/gemini-3-flash-preview"
-
-# Embedding Model
-export EMBEDDING_API_KEY="your-embedding-api-key"
-export EMBEDDING_BASE_URL="https://openrouter.ai/api/v1"
-export EMBEDDING_MODEL="google/gemini-embedding-001"
-```
-
-### Data Directory
-
-Application data is stored in:
-- **macOS/Linux**: `~/.local/share/Nemori/`
-- **Windows**: `%APPDATA%/Nemori/`
-
-## Build
-
-### Build for macOS
-
-```bash
-cd frontend
-pnpm build:mac
-```
-
-### Build for Windows
-
-```bash
-cd frontend
-pnpm build:win
-```
-
-### Build for Linux
-
-```bash
-cd frontend
-pnpm build:linux
-```
-
-## Project Structure
-
-```
-Nemori/
-├── frontend/                 # Electron + React frontend
-│   ├── src/
-│   │   ├── main/            # Electron main process
-│   │   ├── preload/         # IPC bridge
-│   │   └── renderer/        # React application
-│   │       └── src/
-│   │           ├── components/
-│   │           ├── pages/
-│   │           ├── services/  # API client
-│   │           └── ...
-│   ├── resources/           # Application resources
-│   └── package.json
-│
-├── backend/                  # Python FastAPI backend
-│   ├── api/                 # API routes
-│   │   └── routes/
-│   ├── services/            # Business logic
-│   ├── storage/             # Database & vector store
-│   ├── config/              # Configuration
-│   ├── models/              # Pydantic schemas
-│   ├── main.py              # Entry point
-│   └── pyproject.toml
-│
-└── README.md
-```
-
-## API Documentation
-
-When the backend is running in development mode, API documentation is available at:
-- Swagger UI: http://127.0.0.1:21978/docs
-- ReDoc: http://127.0.0.1:21978/redoc
-
-Note: In production mode, the backend uses a random port. Check the application logs for the actual port.
-
-## License
-
-MIT License - see LICENSE file for details.
-
-## Author
-
-[nemori-ai](https://github.com/nemori-ai)
+- **[MIRIX](https://github.com/Mirix-AI/MIRIX)** - AI-powered personal memory assistant
+- **[MineContext](https://github.com/volcengine/MineContext)** - Context-aware screen understanding
