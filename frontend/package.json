@@ -1,10 +1,10 @@
 {
   "name": "nemori",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Nemori - AI-powered personal memory assistant desktop application",
   "main": "./out/main/index.js",
   "author": "FellouAI",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
