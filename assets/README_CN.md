@@ -46,7 +46,9 @@ Nemori 是一款**本地优先**的桌面应用，充当你的个人记忆助手
 </p>
 
 ### 💬 带记忆的 AI 聊天
-与真正了解你日常活动的 AI 进行自然对话。可以问它"我昨天在做什么？"或"帮我找找上周访问的那个网站"。
+与真正了解你日常活动的 AI 进行自然对话。提供两种模式：
+- **Chat 模式**：快速问答，查询你的记忆 - "我昨天在做什么？"
+- **Agent 模式**：深度分析，逐步推理解答复杂问题
 
 <p align="center">
   <img src="screenshot-chat.png" alt="聊天界面" width="700">
@@ -88,21 +90,14 @@ Nemori 是一款**本地优先**的桌面应用，充当你的个人记忆助手
 |------|----------|
 | macOS (Apple 芯片) | `Nemori-x.x.x-arm64.dmg` |
 | macOS (Intel) | `Nemori-x.x.x-x64.dmg` |
-| Windows | `Nemori-x.x.x-setup.exe` |
-| Linux | `Nemori-x.x.x.AppImage` |
 
 ### 2. 安装
 
-**macOS:**
 1. 打开 DMG 文件，将 Nemori 拖入应用程序文件夹
 2. 如果提示"Nemori 已损坏"，在终端运行：
    ```bash
    xattr -cr /Applications/Nemori.app
    ```
-
-**Windows:** 运行安装程序，按提示操作。
-
-**Linux:** 使用 `chmod +x` 赋予执行权限后运行。
 
 ### 3. 配置
 
@@ -168,14 +163,7 @@ npm run dev
 ### 构建
 
 ```bash
-# macOS
 npm run build:mac
-
-# Windows
-npm run build:win
-
-# Linux
-npm run build:linux
 ```
 
 ## 🏗️ 架构

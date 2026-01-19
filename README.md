@@ -46,7 +46,9 @@ A cute floating companion that lives on your desktop, showing recording status. 
 </p>
 
 ### 💬 AI Chat with Memory
-Have natural conversations with an AI that actually knows what you've been doing. Ask questions like "What was I working on yesterday?" or "Find that website I visited last week."
+Have natural conversations with an AI that actually knows what you've been doing. Two modes available:
+- **Chat Mode**: Quick Q&A about your memories - "What was I working on yesterday?"
+- **Agent Mode**: Deep analysis with step-by-step reasoning for complex questions
 
 <p align="center">
   <img src="assets/screenshot-chat.png" alt="Chat Interface" width="700">
@@ -88,21 +90,14 @@ Download the latest release for your platform from [GitHub Releases](https://git
 |----------|----------|
 | macOS (Apple Silicon) | `Nemori-x.x.x-arm64.dmg` |
 | macOS (Intel) | `Nemori-x.x.x-x64.dmg` |
-| Windows | `Nemori-x.x.x-setup.exe` |
-| Linux | `Nemori-x.x.x.AppImage` |
 
 ### 2. Install
 
-**macOS:**
 1. Open the DMG and drag Nemori to Applications
 2. If you see "Nemori is damaged", run in Terminal:
    ```bash
    xattr -cr /Applications/Nemori.app
    ```
-
-**Windows:** Run the installer and follow the prompts.
-
-**Linux:** Make executable with `chmod +x` and run.
 
 ### 3. Configure
 
@@ -168,14 +163,7 @@ npm run dev
 ### Build
 
 ```bash
-# macOS
 npm run build:mac
-
-# Windows
-npm run build:win
-
-# Linux
-npm run build:linux
 ```
 
 ## 🏗️ Architecture
