@@ -919,6 +919,8 @@ function MonitorPickerModal({
   onSelect: (ids: number[]) => void
   onClose: () => void
 }): JSX.Element {
+  const { t, language } = useLanguage()
+  const isZh = language === 'zh'
   const [selectedIds, setSelectedIds] = useState<Set<number>>(() => {
     const initial = new Set<number>()
     if (captureStatus?.selected_monitors) {
