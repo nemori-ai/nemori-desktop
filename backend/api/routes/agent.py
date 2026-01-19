@@ -3,6 +3,7 @@ Agent API Routes - SSE streaming agent conversations
 """
 import uuid
 import json
+import logging
 from typing import Optional, List
 from datetime import datetime
 
@@ -17,6 +18,7 @@ from agents.executor import AgentExecutor
 from agents.tools import get_tool_descriptions
 from models.agent_schemas import AgentChatRequest, StreamEvent, EventType
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -108,6 +110,7 @@ async def agent_chat(request: AgentChatRequest):
         final_response = ""
 
         try:
+            logger.info(f"[generate_events] Starting agent execution for session: {session_id}")
             async for event in executor.run(
                 user_input=request.content,
                 conversation_id=conversation_id,
@@ -117,6 +120,10 @@ async def agent_chat(request: AgentChatRequest):
                 # Track final response
                 if event.type == EventType.RESPONSE_END:
                     final_response = event.data.get("content", "")
+
+                # Log session_end event
+                if event.type == EventType.SESSION_END:
+                    logger.info(f"[generate_events] Received session_end event for session: {session_id}")
 
                 # Serialize event to JSON
                 event_data = {
@@ -130,47 +137,58 @@ async def agent_chat(request: AgentChatRequest):
 
                 yield f"data: {json.dumps(event_data, ensure_ascii=False)}\n\n"
 
+            logger.info(f"[generate_events] Agent execution loop finished for session: {session_id}")
+
             # Update conversation title for new conversations (based on user's first message)
             # This should happen regardless of whether there's a response
-            if is_new_conversation or len(history) <= 1:
-                title = request.content[:50].strip()
-                if len(request.content) > 50:
-                    title = title.rsplit(' ', 1)[0] + '...'
-                await db.update_conversation(conversation_id, title)
+            try:
+                if is_new_conversation or len(history) <= 1:
+                    title = request.content[:50].strip()
+                    if len(request.content) > 50:
+                        title = title.rsplit(' ', 1)[0] + '...'
+                    await db.update_conversation(conversation_id, title)
+            except Exception as title_error:
+                logger.error(f"[generate_events] Failed to update title: {title_error}")
 
             # Save assistant response after completion
             if final_response:
-                assistant_message_id = str(uuid.uuid4())
-                assistant_timestamp = int(datetime.now().timestamp() * 1000)
-                await db.save_message({
-                    "id": assistant_message_id,
-                    "role": "assistant",
-                    "content": final_response,
-                    "timestamp": assistant_timestamp,
-                    "conversation_id": conversation_id,
-                    "metadata": {"session_id": session_id, "is_agent": True}
-                })
+                try:
+                    assistant_message_id = str(uuid.uuid4())
+                    assistant_timestamp = int(datetime.now().timestamp() * 1000)
+                    await db.save_message({
+                        "id": assistant_message_id,
+                        "role": "assistant",
+                        "content": final_response,
+                        "timestamp": assistant_timestamp,
+                        "conversation_id": conversation_id,
+                        "metadata": {"session_id": session_id, "is_agent": True}
+                    })
 
-                # Add both user and assistant messages to memory batch for processing
-                # Note: Include metadata to preserve session_id when add_to_batch saves
-                await memory.add_to_batch({
-                    "id": user_message_id,
-                    "role": "user",
-                    "content": request.content,
-                    "timestamp": timestamp,
-                    "conversation_id": conversation_id
-                })
-                await memory.add_to_batch({
-                    "id": assistant_message_id,
-                    "role": "assistant",
-                    "content": final_response,
-                    "timestamp": assistant_timestamp,
-                    "conversation_id": conversation_id,
-                    "metadata": {"session_id": session_id, "is_agent": True}
-                })
+                    # Add both user and assistant messages to memory batch for processing
+                    # Note: Include metadata to preserve session_id when add_to_batch saves
+                    await memory.add_to_batch({
+                        "id": user_message_id,
+                        "role": "user",
+                        "content": request.content,
+                        "timestamp": timestamp,
+                        "conversation_id": conversation_id
+                    })
+                    await memory.add_to_batch({
+                        "id": assistant_message_id,
+                        "role": "assistant",
+                        "content": final_response,
+                        "timestamp": assistant_timestamp,
+                        "conversation_id": conversation_id,
+                        "metadata": {"session_id": session_id, "is_agent": True}
+                    })
+                except Exception as save_error:
+                    logger.error(f"[generate_events] Failed to save response: {save_error}")
 
         except Exception as e:
             # Send error event
+            logger.error(f"[generate_events] Error during execution: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             error_event = {
                 "type": "error",
                 "session_id": session_id,
@@ -183,6 +201,7 @@ async def agent_chat(request: AgentChatRequest):
             }
             yield f"data: {json.dumps(error_event, ensure_ascii=False)}\n\n"
 
+        logger.info(f"[generate_events] Sending [DONE] for session: {session_id}")
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(

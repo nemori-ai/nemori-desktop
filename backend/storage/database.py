@@ -275,6 +275,76 @@ class Database:
             )
         """)
 
+        # Calendar events table (new calendar system)
+        await self._connection.execute("""
+            CREATE TABLE IF NOT EXISTS calendar_events (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL DEFAULT '',
+                description TEXT DEFAULT '',
+                event_type TEXT NOT NULL DEFAULT 'custom',
+                category TEXT DEFAULT 'custom',
+                scheduled_at INTEGER NOT NULL,
+                duration_minutes INTEGER DEFAULT 15,
+                end_at INTEGER,
+                rrule TEXT,
+                recurrence_end INTEGER,
+                parent_event_id TEXT,
+                source TEXT DEFAULT 'agent' CHECK(source IN ('agent', 'user', 'system', 'migration')),
+                created_by TEXT DEFAULT 'agent',
+                priority INTEGER DEFAULT 5,
+                importance REAL DEFAULT 0.5,
+                status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'ready', 'executing', 'completed', 'failed', 'skipped', 'cancelled')),
+                created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+                started_at INTEGER,
+                completed_at INTEGER,
+                execution_time_ms INTEGER,
+                action_prompt TEXT,
+                target_files TEXT,
+                required_context TEXT,
+                result_summary TEXT,
+                result_data TEXT,
+                error_message TEXT,
+                color TEXT,
+                icon TEXT,
+                all_day INTEGER DEFAULT 0,
+                tags TEXT,
+                metadata TEXT
+            )
+        """)
+        await self._connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_calendar_events_scheduled ON calendar_events(scheduled_at)"
+        )
+        await self._connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_calendar_events_status ON calendar_events(status)"
+        )
+        await self._connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_calendar_events_category ON calendar_events(category)"
+        )
+
+        # Agent reflections table (agent's "soul")
+        await self._connection.execute("""
+            CREATE TABLE IF NOT EXISTS agent_reflections (
+                id TEXT PRIMARY KEY,
+                timestamp INTEGER NOT NULL,
+                trigger TEXT DEFAULT 'scheduled',
+                observations TEXT,
+                insights TEXT,
+                questions TEXT,
+                planned_actions TEXT,
+                recent_event_ids TEXT,
+                profile_summary TEXT,
+                activity_level TEXT DEFAULT 'normal' CHECK(activity_level IN ('high', 'normal', 'low', 'idle')),
+                events_created TEXT,
+                energy_level REAL DEFAULT 0.7,
+                confidence REAL DEFAULT 0.5,
+                curiosity REAL DEFAULT 0.5,
+                raw_response TEXT
+            )
+        """)
+        await self._connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_agent_reflections_timestamp ON agent_reflections(timestamp)"
+        )
+
     def is_connected(self) -> bool:
         return self._connection is not None
 
@@ -1062,3 +1132,289 @@ class Database:
                 "DELETE FROM wakeup_triggers WHERE id = ?", (trigger_id,)
             )
             await self._connection.commit()
+
+    # ==================== Calendar Event Operations ====================
+
+    async def save_calendar_event(self, event: Dict[str, Any]) -> None:
+        """Save a calendar event"""
+        async with self._lock:
+            await self._connection.execute(
+                """
+                INSERT OR REPLACE INTO calendar_events
+                (id, title, description, event_type, category, scheduled_at, duration_minutes,
+                 end_at, rrule, recurrence_end, parent_event_id, source, created_by, priority,
+                 importance, status, created_at, started_at, completed_at, execution_time_ms,
+                 action_prompt, target_files, required_context, result_summary, result_data,
+                 error_message, color, icon, all_day, tags, metadata)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    event['id'],
+                    event.get('title', ''),
+                    event.get('description', ''),
+                    event.get('event_type', 'custom'),
+                    event.get('category', 'custom'),
+                    event.get('scheduled_at'),
+                    event.get('duration_minutes', 15),
+                    event.get('end_at'),
+                    event.get('rrule'),
+                    event.get('recurrence_end'),
+                    event.get('parent_event_id'),
+                    event.get('source', 'agent'),
+                    event.get('created_by', 'agent'),
+                    event.get('priority', 5),
+                    event.get('importance', 0.5),
+                    event.get('status', 'pending'),
+                    event.get('created_at', int(time.time() * 1000)),
+                    event.get('started_at'),
+                    event.get('completed_at'),
+                    event.get('execution_time_ms'),
+                    event.get('action_prompt'),
+                    json.dumps(event.get('target_files', [])),
+                    json.dumps(event.get('required_context', {})),
+                    event.get('result_summary'),
+                    json.dumps(event.get('result_data')) if event.get('result_data') else None,
+                    event.get('error_message'),
+                    event.get('color'),
+                    event.get('icon'),
+                    1 if event.get('all_day') else 0,
+                    json.dumps(event.get('tags', [])),
+                    json.dumps(event.get('metadata', {})),
+                ),
+            )
+            await self._connection.commit()
+
+    async def get_calendar_events(
+        self, status: Optional[str] = None, limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """Get calendar events, optionally filtered by status"""
+        if status:
+            cursor = await self._connection.execute(
+                "SELECT * FROM calendar_events WHERE status = ? ORDER BY scheduled_at DESC LIMIT ?",
+                (status, limit),
+            )
+        else:
+            cursor = await self._connection.execute(
+                "SELECT * FROM calendar_events ORDER BY scheduled_at DESC LIMIT ?",
+                (limit,),
+            )
+        rows = await cursor.fetchall()
+        return [self._parse_calendar_event(row) for row in rows]
+
+    async def get_calendar_events_for_range(
+        self, start_time: int, end_time: int
+    ) -> List[Dict[str, Any]]:
+        """Get calendar events within a time range (timestamps in milliseconds)"""
+        cursor = await self._connection.execute(
+            """SELECT * FROM calendar_events
+               WHERE scheduled_at >= ? AND scheduled_at < ?
+               ORDER BY scheduled_at ASC""",
+            (start_time, end_time),
+        )
+        rows = await cursor.fetchall()
+        return [self._parse_calendar_event(row) for row in rows]
+
+    async def get_calendar_events_by_date(self, date_str: str) -> List[Dict[str, Any]]:
+        """Get calendar events for a specific date (YYYY-MM-DD format)"""
+        from datetime import datetime as dt
+        date = dt.strptime(date_str, "%Y-%m-%d")
+        start_ts = int(date.timestamp() * 1000)
+        end_ts = start_ts + 24 * 60 * 60 * 1000
+        return await self.get_calendar_events_for_range(start_ts, end_ts)
+
+    async def get_calendar_event(self, event_id: str) -> Optional[Dict[str, Any]]:
+        """Get a single calendar event by ID"""
+        cursor = await self._connection.execute(
+            "SELECT * FROM calendar_events WHERE id = ?", (event_id,)
+        )
+        row = await cursor.fetchone()
+        return self._parse_calendar_event(row) if row else None
+
+    async def get_due_calendar_events(self) -> List[Dict[str, Any]]:
+        """Get pending events that are due for execution"""
+        now = int(time.time() * 1000)
+        cursor = await self._connection.execute(
+            """SELECT * FROM calendar_events
+               WHERE status = 'pending' AND scheduled_at <= ?
+               ORDER BY priority DESC, scheduled_at ASC""",
+            (now,),
+        )
+        rows = await cursor.fetchall()
+        return [self._parse_calendar_event(row) for row in rows]
+
+    async def update_calendar_event(self, event_id: str, updates: Dict[str, Any]) -> None:
+        """Update a calendar event"""
+        async with self._lock:
+            set_clauses = []
+            values = []
+
+            field_mappings = {
+                'title': 'title', 'description': 'description', 'event_type': 'event_type',
+                'category': 'category', 'scheduled_at': 'scheduled_at', 'duration_minutes': 'duration_minutes',
+                'end_at': 'end_at', 'rrule': 'rrule', 'recurrence_end': 'recurrence_end',
+                'priority': 'priority', 'importance': 'importance', 'status': 'status',
+                'started_at': 'started_at', 'completed_at': 'completed_at', 'execution_time_ms': 'execution_time_ms',
+                'action_prompt': 'action_prompt', 'result_summary': 'result_summary',
+                'error_message': 'error_message', 'color': 'color', 'icon': 'icon'
+            }
+
+            json_fields = {'target_files', 'required_context', 'result_data', 'tags', 'metadata'}
+
+            for key, value in updates.items():
+                if key in field_mappings:
+                    set_clauses.append(f"{field_mappings[key]} = ?")
+                    values.append(value)
+                elif key in json_fields:
+                    set_clauses.append(f"{key} = ?")
+                    values.append(json.dumps(value) if value else None)
+                elif key == 'all_day':
+                    set_clauses.append("all_day = ?")
+                    values.append(1 if value else 0)
+
+            if set_clauses:
+                values.append(event_id)
+                query = f"UPDATE calendar_events SET {', '.join(set_clauses)} WHERE id = ?"
+                await self._connection.execute(query, values)
+                await self._connection.commit()
+
+    async def update_calendar_event_status(
+        self, event_id: str, status: str,
+        result_summary: Optional[str] = None, error_message: Optional[str] = None
+    ) -> None:
+        """Update a calendar event's status"""
+        async with self._lock:
+            now = int(time.time() * 1000)
+
+            if status == 'executing':
+                await self._connection.execute(
+                    "UPDATE calendar_events SET status = ?, started_at = ? WHERE id = ?",
+                    (status, now, event_id),
+                )
+            elif status in ('completed', 'failed', 'skipped', 'cancelled'):
+                cursor = await self._connection.execute(
+                    "SELECT started_at FROM calendar_events WHERE id = ?", (event_id,)
+                )
+                row = await cursor.fetchone()
+                execution_time = None
+                if row and row['started_at']:
+                    execution_time = now - row['started_at']
+
+                await self._connection.execute(
+                    """UPDATE calendar_events
+                       SET status = ?, result_summary = ?, error_message = ?, completed_at = ?, execution_time_ms = ?
+                       WHERE id = ?""",
+                    (status, result_summary, error_message, now, execution_time, event_id),
+                )
+            else:
+                await self._connection.execute(
+                    "UPDATE calendar_events SET status = ? WHERE id = ?",
+                    (status, event_id),
+                )
+            await self._connection.commit()
+
+    async def delete_calendar_event(self, event_id: str) -> None:
+        """Delete a calendar event"""
+        async with self._lock:
+            await self._connection.execute(
+                "DELETE FROM calendar_events WHERE id = ?", (event_id,)
+            )
+            await self._connection.commit()
+
+    def _parse_calendar_event(self, row) -> Dict[str, Any]:
+        """Parse a calendar event row from database"""
+        result = dict(row)
+        json_fields = ['target_files', 'required_context', 'result_data', 'tags', 'metadata']
+        for field in json_fields:
+            if result.get(field) and isinstance(result[field], str):
+                try:
+                    result[field] = json.loads(result[field])
+                except:
+                    pass
+        result['all_day'] = bool(result.get('all_day'))
+        return result
+
+    # ==================== Agent Reflection Operations ====================
+
+    async def save_agent_reflection(self, reflection: Dict[str, Any]) -> None:
+        """Save an agent reflection"""
+        async with self._lock:
+            await self._connection.execute(
+                """
+                INSERT OR REPLACE INTO agent_reflections
+                (id, timestamp, trigger, observations, insights, questions, planned_actions,
+                 recent_event_ids, profile_summary, activity_level, events_created,
+                 energy_level, confidence, curiosity, raw_response)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    reflection['id'],
+                    reflection.get('timestamp', int(time.time() * 1000)),
+                    reflection.get('trigger', 'scheduled'),
+                    json.dumps(reflection.get('observations', [])),
+                    json.dumps(reflection.get('insights', [])),
+                    json.dumps(reflection.get('questions', [])),
+                    json.dumps(reflection.get('planned_actions', [])),
+                    json.dumps(reflection.get('recent_event_ids', [])),
+                    reflection.get('profile_summary'),
+                    reflection.get('activity_level', 'normal'),
+                    json.dumps(reflection.get('events_created', [])),
+                    reflection.get('energy_level', 0.7),
+                    reflection.get('confidence', 0.5),
+                    reflection.get('curiosity', 0.5),
+                    reflection.get('raw_response'),
+                ),
+            )
+            await self._connection.commit()
+
+    async def get_agent_reflections(
+        self, limit: int = 50, offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """Get agent reflections, most recent first"""
+        cursor = await self._connection.execute(
+            "SELECT * FROM agent_reflections ORDER BY timestamp DESC LIMIT ? OFFSET ?",
+            (limit, offset),
+        )
+        rows = await cursor.fetchall()
+        return [self._parse_agent_reflection(row) for row in rows]
+
+    async def get_agent_reflection(self, reflection_id: str) -> Optional[Dict[str, Any]]:
+        """Get a single agent reflection by ID"""
+        cursor = await self._connection.execute(
+            "SELECT * FROM agent_reflections WHERE id = ?", (reflection_id,)
+        )
+        row = await cursor.fetchone()
+        return self._parse_agent_reflection(row) if row else None
+
+    async def get_recent_agent_reflections(
+        self, since_timestamp: int, limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """Get agent reflections since a timestamp"""
+        cursor = await self._connection.execute(
+            """SELECT * FROM agent_reflections
+               WHERE timestamp >= ?
+               ORDER BY timestamp DESC LIMIT ?""",
+            (since_timestamp, limit),
+        )
+        rows = await cursor.fetchall()
+        return [self._parse_agent_reflection(row) for row in rows]
+
+    async def delete_agent_reflection(self, reflection_id: str) -> None:
+        """Delete an agent reflection"""
+        async with self._lock:
+            await self._connection.execute(
+                "DELETE FROM agent_reflections WHERE id = ?", (reflection_id,)
+            )
+            await self._connection.commit()
+
+    def _parse_agent_reflection(self, row) -> Dict[str, Any]:
+        """Parse an agent reflection row from database"""
+        result = dict(row)
+        json_fields = ['observations', 'insights', 'questions', 'planned_actions',
+                       'recent_event_ids', 'events_created']
+        for field in json_fields:
+            if result.get(field) and isinstance(result[field], str):
+                try:
+                    result[field] = json.loads(result[field])
+                except:
+                    pass
+        return result

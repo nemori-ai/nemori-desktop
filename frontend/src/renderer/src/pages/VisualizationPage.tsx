@@ -2,14 +2,20 @@ import { useState, useEffect, useMemo } from 'react'
 import {
   Calendar,
   Brain,
-  Lightbulb,
-  Heart,
   TrendingUp,
   Activity,
   Clock,
   RefreshCw,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Briefcase,
+  DollarSign,
+  HeartPulse,
+  Home,
+  Users,
+  GraduationCap,
+  Gamepad2,
+  Sparkles
 } from 'lucide-react'
 import {
   api,
@@ -22,6 +28,74 @@ import {
 import { useLanguage } from '../contexts/LanguageContext'
 
 type TabType = 'overview' | 'timeline' | 'heatmap'
+
+// 8 life categories configuration
+const CATEGORY_CONFIG: Record<string, {
+  labelEn: string
+  labelZh: string
+  icon: React.ReactNode
+  color: string
+  bgColor: string
+}> = {
+  career: {
+    labelEn: 'Career',
+    labelZh: '事业',
+    icon: <Briefcase className="w-4 h-4" />,
+    color: '#3B82F6',
+    bgColor: 'bg-blue-100 dark:bg-blue-900/30'
+  },
+  finance: {
+    labelEn: 'Finance',
+    labelZh: '财务',
+    icon: <DollarSign className="w-4 h-4" />,
+    color: '#22C55E',
+    bgColor: 'bg-green-100 dark:bg-green-900/30'
+  },
+  health: {
+    labelEn: 'Health',
+    labelZh: '健康',
+    icon: <HeartPulse className="w-4 h-4" />,
+    color: '#EF4444',
+    bgColor: 'bg-red-100 dark:bg-red-900/30'
+  },
+  family: {
+    labelEn: 'Family',
+    labelZh: '家庭',
+    icon: <Home className="w-4 h-4" />,
+    color: '#EC4899',
+    bgColor: 'bg-pink-100 dark:bg-pink-900/30'
+  },
+  social: {
+    labelEn: 'Social',
+    labelZh: '社交',
+    icon: <Users className="w-4 h-4" />,
+    color: '#F97316',
+    bgColor: 'bg-orange-100 dark:bg-orange-900/30'
+  },
+  growth: {
+    labelEn: 'Growth',
+    labelZh: '成长',
+    icon: <GraduationCap className="w-4 h-4" />,
+    color: '#8B5CF6',
+    bgColor: 'bg-purple-100 dark:bg-purple-900/30'
+  },
+  leisure: {
+    labelEn: 'Leisure',
+    labelZh: '娱乐',
+    icon: <Gamepad2 className="w-4 h-4" />,
+    color: '#EAB308',
+    bgColor: 'bg-yellow-100 dark:bg-yellow-900/30'
+  },
+  spirit: {
+    labelEn: 'Spirit',
+    labelZh: '心灵',
+    icon: <Sparkles className="w-4 h-4" />,
+    color: '#6366F1',
+    bgColor: 'bg-indigo-100 dark:bg-indigo-900/30'
+  }
+}
+
+const CATEGORY_ORDER = ['career', 'finance', 'health', 'family', 'social', 'growth', 'leisure', 'spirit']
 
 export default function VisualizationPage(): JSX.Element {
   const { t } = useLanguage()
@@ -159,6 +233,187 @@ function TabButton({
   )
 }
 
+// Donut Chart Component
+function DonutChart({
+  data,
+  size = 200,
+  strokeWidth = 32
+}: {
+  data: Record<string, number>
+  size?: number
+  strokeWidth?: number
+}): JSX.Element {
+  const { language } = useLanguage()
+  const [hoveredCategory, setHoveredCategory] = useState<string | null>(null)
+
+  const total = useMemo(() => {
+    return Object.values(data).reduce((sum, count) => sum + count, 0)
+  }, [data])
+
+  const segments = useMemo(() => {
+    if (total === 0) return []
+
+    const radius = (size - strokeWidth) / 2
+    const circumference = 2 * Math.PI * radius
+    let currentAngle = -90 // Start from top
+
+    return CATEGORY_ORDER.map((category) => {
+      const count = data[category] || 0
+      const percentage = count / total
+      const angle = percentage * 360
+      const startAngle = currentAngle
+      currentAngle += angle
+
+      // Calculate arc path
+      const startRad = (startAngle * Math.PI) / 180
+      const endRad = ((startAngle + angle) * Math.PI) / 180
+      const largeArc = angle > 180 ? 1 : 0
+
+      const x1 = size / 2 + radius * Math.cos(startRad)
+      const y1 = size / 2 + radius * Math.sin(startRad)
+      const x2 = size / 2 + radius * Math.cos(endRad)
+      const y2 = size / 2 + radius * Math.sin(endRad)
+
+      return {
+        category,
+        count,
+        percentage,
+        color: CATEGORY_CONFIG[category].color,
+        path: percentage > 0
+          ? `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`
+          : ''
+      }
+    }).filter(s => s.percentage > 0)
+  }, [data, total, size, strokeWidth])
+
+  if (total === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center" style={{ width: size, height: size }}>
+        <svg width={size} height={size}>
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={(size - strokeWidth) / 2}
+            fill="none"
+            stroke="var(--muted)"
+            strokeWidth={strokeWidth}
+          />
+        </svg>
+        <p className="text-sm text-muted-foreground mt-2">
+          {language === 'zh' ? '暂无数据' : 'No data'}
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg width={size} height={size}>
+          {/* Background circle */}
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={(size - strokeWidth) / 2}
+            fill="none"
+            stroke="var(--muted)"
+            strokeWidth={strokeWidth}
+            opacity={0.3}
+          />
+          {/* Segments */}
+          {segments.map((segment, i) => (
+            <path
+              key={segment.category}
+              d={segment.path}
+              fill="none"
+              stroke={segment.color}
+              strokeWidth={hoveredCategory === segment.category ? strokeWidth + 4 : strokeWidth}
+              strokeLinecap="round"
+              className="transition-all duration-200 cursor-pointer"
+              style={{
+                filter: hoveredCategory === segment.category ? 'brightness(1.1)' : 'none'
+              }}
+              onMouseEnter={() => setHoveredCategory(segment.category)}
+              onMouseLeave={() => setHoveredCategory(null)}
+            />
+          ))}
+        </svg>
+        {/* Center text */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          {hoveredCategory ? (
+            <>
+              <span className="text-2xl font-bold">{data[hoveredCategory] || 0}</span>
+              <span className="text-xs text-muted-foreground">
+                {language === 'zh'
+                  ? CATEGORY_CONFIG[hoveredCategory].labelZh
+                  : CATEGORY_CONFIG[hoveredCategory].labelEn}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-2xl font-bold">{total}</span>
+              <span className="text-xs text-muted-foreground">
+                {language === 'zh' ? '总记忆' : 'Total'}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Category Legend Component
+function CategoryLegend({
+  data
+}: {
+  data: Record<string, number>
+}): JSX.Element {
+  const { language } = useLanguage()
+  const total = Object.values(data).reduce((sum, count) => sum + count, 0)
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {CATEGORY_ORDER.map((category) => {
+        const config = CATEGORY_CONFIG[category]
+        const count = data[category] || 0
+        const percentage = total > 0 ? Math.round((count / total) * 100) : 0
+
+        return (
+          <div
+            key={category}
+            className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted/40 transition-colors"
+          >
+            <div
+              className="w-3 h-3 rounded-full flex-shrink-0"
+              style={{ backgroundColor: config.color }}
+            />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium truncate">
+                  {language === 'zh' ? config.labelZh : config.labelEn}
+                </span>
+                <span className="text-xs text-muted-foreground ml-1">
+                  {count}
+                </span>
+              </div>
+              <div className="h-1.5 bg-muted/50 rounded-full mt-1 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${percentage}%`,
+                    backgroundColor: config.color
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function OverviewTab({
   stats,
   heatmap,
@@ -170,7 +425,28 @@ function OverviewTab({
   topics: TopicData | null
   isLoading: boolean
 }): JSX.Element {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
+
+  // Get category data from topics or stats
+  const categoryData = useMemo(() => {
+    // First try category_distribution, then type_distribution (both should have 8 categories)
+    if (topics?.category_distribution) {
+      return topics.category_distribution
+    }
+    if (topics?.type_distribution) {
+      // Check if it has the 8 life categories
+      const dist = topics.type_distribution
+      const hasCategories = CATEGORY_ORDER.some(cat => cat in dist)
+      if (hasCategories) {
+        return dist
+      }
+    }
+    if ((stats?.semantic as any)?.categories) {
+      return (stats.semantic as any).categories
+    }
+    // Fallback empty data
+    return CATEGORY_ORDER.reduce((acc, cat) => ({ ...acc, [cat]: 0 }), {})
+  }, [topics, stats])
 
   if (isLoading && !stats) {
     return <LoadingState />
@@ -178,7 +454,7 @@ function OverviewTab({
 
   return (
     <div className="space-y-6">
-      {/* Stats Cards */}
+      {/* Top Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={<Calendar className="w-5 h-5 text-purple-500" />}
@@ -191,7 +467,7 @@ function OverviewTab({
           icon={<Brain className="w-5 h-5 text-blue-500" />}
           title={t('insights.semanticMemories')}
           value={stats?.semantic.total ?? 0}
-          subtext={`${stats?.semantic.knowledge ?? 0} ${t('insights.knowledge')}, ${stats?.semantic.preference ?? 0} ${t('insights.preferences')}`}
+          subtext={`+${stats?.semantic.this_week ?? 0} ${t('insights.thisWeek')}`}
           bgColor="bg-blue-50 dark:bg-blue-900/20"
         />
         <StatCard
@@ -210,6 +486,19 @@ function OverviewTab({
         />
       </div>
 
+      {/* Category Distribution - Main Feature */}
+      <div className="p-6 rounded-xl glass-card">
+        <h3 className="text-lg font-semibold mb-4">
+          {language === 'zh' ? '人生领域分布' : 'Life Categories Distribution'}
+        </h3>
+        <div className="flex flex-col lg:flex-row items-center gap-8">
+          <DonutChart data={categoryData} size={220} strokeWidth={28} />
+          <div className="flex-1 w-full">
+            <CategoryLegend data={categoryData} />
+          </div>
+        </div>
+      </div>
+
       {/* Mini Heatmap */}
       {heatmap && (
         <div className="p-5 rounded-lg glass-card">
@@ -218,7 +507,7 @@ function OverviewTab({
         </div>
       )}
 
-      {/* Topics & Keywords */}
+      {/* Top Keywords */}
       {topics && topics.top_keywords.length > 0 && (
         <div className="p-5 rounded-lg glass-card">
           <h3 className="text-sm font-medium mb-3">{t('insights.topKeywords')}</h3>
@@ -226,35 +515,13 @@ function OverviewTab({
             {topics.top_keywords.slice(0, 15).map((kw, i) => (
               <span
                 key={i}
-                className="px-3 py-1.5 rounded-full text-sm bg-muted/60"
+                className="px-3 py-1.5 rounded-full text-sm bg-muted/60 hover:bg-muted transition-colors"
                 style={{ opacity: 0.5 + (0.5 * (15 - i)) / 15 }}
               >
                 {kw.word}
                 <span className="ml-1 text-xs text-muted-foreground">({kw.count})</span>
               </span>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* Type Distribution */}
-      {topics && (
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-5 rounded-lg glass-card">
-            <div className="flex items-center gap-2 mb-2">
-              <Lightbulb className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">{t('insights.knowledgeType')}</span>
-            </div>
-            <p className="text-3xl font-bold">{topics.type_distribution.knowledge ?? 0}</p>
-            <p className="text-xs text-muted-foreground mt-1">{t('insights.factsAndInformation')}</p>
-          </div>
-          <div className="p-5 rounded-lg glass-card">
-            <div className="flex items-center gap-2 mb-2">
-              <Heart className="w-4 h-4 text-accent" />
-              <span className="text-sm font-medium">{t('insights.preferencesType')}</span>
-            </div>
-            <p className="text-3xl font-bold">{topics.type_distribution.preference ?? 0}</p>
-            <p className="text-xs text-muted-foreground mt-1">{t('insights.personalTastesAndHabits')}</p>
           </div>
         </div>
       )}
@@ -374,7 +641,7 @@ function TimelineDay({
     <div className="rounded-lg glass-card overflow-hidden">
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between p-3 hover:bg-muted/40 transition-all duration-200"
+        className="w-full flex items-center justify-between p-4 hover:bg-muted/40 transition-all duration-200"
       >
         <div className="flex items-center gap-3">
           {expanded ? (
@@ -383,24 +650,26 @@ function TimelineDay({
             <ChevronRight className="w-4 h-4 text-muted-foreground" />
           )}
           <span className="font-medium">{formatDate(date)}</span>
-          <span className="text-sm text-muted-foreground">({events.length} {t('insights.events')})</span>
+          <span className="text-sm text-muted-foreground px-2 py-0.5 bg-muted/50 rounded-full">
+            {events.length} {t('insights.events')}
+          </span>
         </div>
       </button>
 
       {expanded && (
-        <div className="px-4 pb-3 space-y-2">
+        <div className="px-4 pb-4 space-y-2">
           {events.map((event) => (
             <div
               key={event.id}
-              className="pl-7 py-2 border-l-2 border-primary/20 ml-2 cursor-pointer hover:bg-muted/30 rounded-r transition-colors"
+              className="pl-7 py-3 border-l-2 border-primary/30 ml-2 cursor-pointer hover:bg-muted/30 rounded-r-lg transition-colors"
               onClick={() => onEventClick(event)}
             >
               <div className="flex items-start justify-between">
-                <div>
+                <div className="flex-1 min-w-0 pr-2">
                   <p className="font-medium text-sm">{event.title}</p>
-                  <p className="text-sm text-muted-foreground line-clamp-2">{event.content}</p>
+                  <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{event.content}</p>
                 </div>
-                <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
+                <span className="text-xs text-muted-foreground whitespace-nowrap bg-muted/50 px-2 py-1 rounded">
                   {new Date(event.start_time).toLocaleTimeString([], {
                     hour: '2-digit',
                     minute: '2-digit'
@@ -408,7 +677,7 @@ function TimelineDay({
                 </span>
               </div>
               {event.screenshot_count > 0 && (
-                <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                <span className="inline-block mt-2 text-xs px-2 py-0.5 rounded bg-primary/10 text-primary">
                   {event.screenshot_count} {t('nav.screenshots').toLowerCase()}
                 </span>
               )}
@@ -450,10 +719,10 @@ function EventDetailModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-4">
-          <h2 className="text-xl font-bold">{event.title}</h2>
+          <h2 className="text-xl font-bold break-words pr-4">{event.title}</h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-muted/60 transition-all duration-200"
+            className="p-1.5 rounded-lg hover:bg-muted/60 transition-all duration-200 flex-shrink-0"
           >
             <ChevronRight className="w-5 h-5 rotate-45" />
           </button>
@@ -578,6 +847,13 @@ function MiniHeatmap({ data }: { data: HeatmapData['heatmap'] }): JSX.Element {
     }
   })
 
+  // GitHub-style color scale: empty days are light gray, active days are green
+  const getColor = (count: number) => {
+    if (count === 0) return 'rgba(128, 128, 128, 0.1)' // Light gray for empty days
+    const intensity = 0.3 + (count / maxCount) * 0.7
+    return `rgba(45, 90, 69, ${intensity})`
+  }
+
   return (
     <div className="flex gap-1 overflow-x-auto pb-2">
       {weeks.map((week, wi) => (
@@ -585,13 +861,8 @@ function MiniHeatmap({ data }: { data: HeatmapData['heatmap'] }): JSX.Element {
           {week.map((day, di) => (
             <div
               key={di}
-              className="w-3 h-3 rounded-sm"
-              style={{
-                backgroundColor:
-                  day.count === 0
-                    ? 'var(--muted)'
-                    : `rgba(45, 90, 69, ${0.2 + (day.count / maxCount) * 0.8})`
-              }}
+              className="w-3 h-3 rounded-sm transition-colors border border-border/20"
+              style={{ backgroundColor: getColor(day.count) }}
               title={`${day.date}: ${day.count} memories`}
             />
           ))}
@@ -656,6 +927,14 @@ function FullHeatmap({
     return labels
   }, [weeks])
 
+  // GitHub-style color scale
+  const getColor = (count: number) => {
+    if (count === -1) return 'transparent' // Padding cells
+    if (count === 0) return 'rgba(128, 128, 128, 0.1)' // Light gray for empty days
+    const intensity = 0.3 + (count / Math.max(maxCount, 1)) * 0.7
+    return `rgba(45, 90, 69, ${intensity})`
+  }
+
   return (
     <div className="overflow-x-auto">
       {/* Month labels */}
@@ -688,13 +967,8 @@ function FullHeatmap({
               {week.map((day, di) => (
                 <div
                   key={di}
-                  className={`w-4 h-4 rounded-sm ${day.count === -1 ? 'opacity-0' : ''}`}
-                  style={{
-                    backgroundColor:
-                      day.count <= 0
-                        ? 'var(--muted)'
-                        : `rgba(45, 90, 69, ${0.2 + (day.count / Math.max(maxCount, 1)) * 0.8})`
-                  }}
+                  className={`w-4 h-4 rounded-sm transition-colors ${day.count === -1 ? '' : 'border border-border/20'}`}
+                  style={{ backgroundColor: getColor(day.count) }}
                   title={day.date ? `${day.date}: ${day.count} memories` : ''}
                 />
               ))}
@@ -706,13 +980,13 @@ function FullHeatmap({
       {/* Legend */}
       <div className="flex items-center gap-2 mt-4 text-xs text-muted-foreground">
         <span>{t('insights.less')}</span>
-        {[0, 0.25, 0.5, 0.75, 1].map((level, i) => (
+        {[0, 0.3, 0.5, 0.7, 1].map((level, i) => (
           <div
             key={i}
-            className="w-4 h-4 rounded-sm"
+            className="w-4 h-4 rounded-sm border border-border/20"
             style={{
               backgroundColor:
-                level === 0 ? 'var(--muted)' : `rgba(45, 90, 69, ${0.2 + level * 0.8})`
+                level === 0 ? 'rgba(128, 128, 128, 0.1)' : `rgba(45, 90, 69, ${0.3 + level * 0.7})`
             }}
           />
         ))}
@@ -736,7 +1010,7 @@ function StatCard({
   bgColor: string
 }): JSX.Element {
   return (
-    <div className={`p-4 rounded-lg ${bgColor}`}>
+    <div className={`p-4 rounded-xl ${bgColor} transition-all duration-200 hover:shadow-warm-sm`}>
       <div className="flex items-center gap-2 mb-2">
         {icon}
         <span className="text-sm font-medium">{title}</span>

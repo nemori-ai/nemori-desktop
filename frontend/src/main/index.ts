@@ -66,10 +66,10 @@ function createWindow(): void {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize
 
   mainWindow = new BrowserWindow({
-    width: Math.min(1400, Math.max(1200, screenWidth * 0.85)),
-    height: Math.min(900, Math.max(750, screenHeight * 0.85)),
-    minWidth: 1000,
-    minHeight: 700,
+    width: Math.min(1600, Math.max(1400, Math.round(screenWidth * 0.9))),
+    height: Math.min(1000, Math.max(850, Math.round(screenHeight * 0.9))),
+    minWidth: 1100,
+    minHeight: 750,
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: 'hiddenInset',

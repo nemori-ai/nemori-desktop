@@ -21,6 +21,7 @@ from storage.vector_store import VectorStore
 from services.llm_service import LLMService
 from services.memory_service import MemoryService
 from services.screenshot_service import ScreenshotService
+from services.profile_scheduler import ProfileScheduler
 
 # Support for bundled executable - set data directory from environment
 if os.environ.get('NEMORI_DATA_DIR'):
@@ -56,10 +57,28 @@ async def lifespan(app: FastAPI):
     ScreenshotService.get_instance()
     print("Services initialized")
 
+    # Initialize profile agent (simplified automated maintenance)
+    try:
+        profile_scheduler = ProfileScheduler.get_instance()
+        await profile_scheduler.initialize()
+        await profile_scheduler.start()
+        print("Profile agent initialized (auto-maintenance every 6 hours)")
+    except Exception as e:
+        print(f"Warning: Profile agent initialization failed: {e}")
+        print("Continuing without profile agent")
+
     yield
 
     # Shutdown
     print("Shutting down Nemori Backend...")
+
+    # Stop profile agent
+    try:
+        if ProfileScheduler._instance is not None:
+            await ProfileScheduler._instance.stop()
+        print("Profile agent stopped")
+    except Exception as e:
+        print(f"Warning: Profile agent shutdown error: {e}")
 
     # VectorStore cleanup is handled automatically via atexit and signal handlers
     # but we can also explicitly trigger it here for cleaner shutdown

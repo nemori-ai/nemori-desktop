@@ -218,13 +218,24 @@ class VisualizationGenerator:
     async def get_topic_distribution(self) -> Dict[str, Any]:
         """
         Analyze topic distribution across semantic memories.
+        Uses the 8 life categories: career, finance, health, family, social, growth, leisure, spirit
         """
         semantic_memories = await self.db.get_semantic_memories(limit=500)
 
-        # Count by type
-        type_counts = defaultdict(int)
+        # 8 life categories
+        life_categories = ['career', 'finance', 'health', 'family', 'social', 'growth', 'leisure', 'spirit']
+
+        # Count by category (type field)
+        category_counts = {cat: 0 for cat in life_categories}
         for memory in semantic_memories:
-            type_counts[memory.get('type', 'unknown')] += 1
+            mem_type = memory.get('type', 'unknown')
+            if mem_type in category_counts:
+                category_counts[mem_type] += 1
+            # Handle legacy types by mapping to closest category
+            elif mem_type == 'knowledge':
+                category_counts['growth'] += 1
+            elif mem_type == 'preference':
+                category_counts['leisure'] += 1
 
         # Extract simple topic keywords from content
         word_freq = defaultdict(int)
@@ -237,7 +248,9 @@ class VisualizationGenerator:
                      'between', 'under', 'again', 'further', 'then', 'once',
                      'and', 'but', 'or', 'nor', 'so', 'yet', 'both', 'either',
                      'neither', 'not', 'only', 'own', 'same', 'than', 'too',
-                     'very', 'just', 'user', 'prefers', 'likes', 'enjoys', 'that'}
+                     'very', 'just', 'user', 'prefers', 'likes', 'enjoys', 'that',
+                     '的', '是', '在', '了', '和', '有', '我', '他', '她', '它',
+                     '这', '那', '们', '会', '能', '也', '就', '都', '很', '不'}
 
         for memory in semantic_memories:
             content = memory.get('content', '').lower()
@@ -245,14 +258,15 @@ class VisualizationGenerator:
             for word in words:
                 # Clean word
                 word = ''.join(c for c in word if c.isalnum())
-                if len(word) > 3 and word not in stopwords:
+                if len(word) > 2 and word not in stopwords:
                     word_freq[word] += 1
 
         # Get top keywords
         top_keywords = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)[:20]
 
         return {
-            'type_distribution': dict(type_counts),
+            'category_distribution': category_counts,
+            'type_distribution': category_counts,  # Keep for backward compatibility
             'top_keywords': [
                 {'word': word, 'count': count}
                 for word, count in top_keywords
@@ -263,6 +277,7 @@ class VisualizationGenerator:
     async def get_memory_stats(self) -> Dict[str, Any]:
         """
         Get comprehensive memory statistics.
+        Uses the 8 life categories for semantic memory breakdown.
         """
         episodic = await self.db.get_episodic_memories(limit=1000)
         semantic = await self.db.get_semantic_memories(limit=1000)
@@ -280,9 +295,18 @@ class VisualizationGenerator:
         semantic_today = sum(1 for m in semantic if m.get('created_at', 0) >= day_ago)
         semantic_week = sum(1 for m in semantic if m.get('created_at', 0) >= week_ago)
 
-        # Type breakdown for semantic
-        knowledge_count = sum(1 for m in semantic if m.get('type') == 'knowledge')
-        preference_count = sum(1 for m in semantic if m.get('type') == 'preference')
+        # Category breakdown for semantic (8 life categories)
+        life_categories = ['career', 'finance', 'health', 'family', 'social', 'growth', 'leisure', 'spirit']
+        category_counts = {cat: 0 for cat in life_categories}
+        for m in semantic:
+            mem_type = m.get('type', 'unknown')
+            if mem_type in category_counts:
+                category_counts[mem_type] += 1
+            # Handle legacy types
+            elif mem_type == 'knowledge':
+                category_counts['growth'] += 1
+            elif mem_type == 'preference':
+                category_counts['leisure'] += 1
 
         # Average confidence
         confidences = [m.get('confidence', 0.8) for m in semantic]
@@ -299,8 +323,10 @@ class VisualizationGenerator:
                 'total': len(semantic),
                 'today': semantic_today,
                 'this_week': semantic_week,
-                'knowledge': knowledge_count,
-                'preference': preference_count,
+                'categories': category_counts,
+                # Keep legacy fields for backward compatibility
+                'knowledge': category_counts.get('growth', 0),
+                'preference': category_counts.get('leisure', 0),
                 'avg_confidence': round(avg_confidence, 2)
             },
             'growth': {

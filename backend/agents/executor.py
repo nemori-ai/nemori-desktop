@@ -18,7 +18,7 @@ import logging
 from typing import Optional, List, Dict, Any, AsyncGenerator, Callable
 from datetime import datetime
 
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent
 
 logger = logging.getLogger(__name__)
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
@@ -87,10 +87,10 @@ class AgentExecutor:
         return inject_language(prompt, language)
 
     def _create_langchain_agent(self):
-        """Create a LangGraph ReAct agent with our tools.
+        """Create a LangChain agent with our tools.
 
-        Uses langgraph.prebuilt.create_react_agent which is the stable API
-        for creating tool-calling agents in the LangChain ecosystem.
+        Uses langchain.agents.create_agent which is the modern API
+        for creating tool-calling agents in the LangChain 1.0+ ecosystem.
         """
         # Get the model from LLM service
         model_name = self.llm_service.model
@@ -98,7 +98,7 @@ class AgentExecutor:
         base_url = self.llm_service.base_url
 
         # Create ChatOpenAI instance with tool calling support
-        # Enable parallel tool calls - LangGraph will wait for all to complete
+        # Enable parallel tool calls - the agent will wait for all to complete
         chat_model = ChatOpenAI(
             model=model_name,
             api_key=api_key,
@@ -106,13 +106,13 @@ class AgentExecutor:
             temperature=0.7,
         )  # parallel_tool_calls enabled by default
 
-        # Create agent using LangGraph's create_react_agent
+        # Create agent using LangChain's create_agent
         # This creates a graph that alternates between the model and tools
-        # Using 'prompt' parameter which accepts str and converts to SystemMessage
-        agent = create_react_agent(
+        # Using 'system_prompt' parameter (new API replaces 'prompt')
+        agent = create_agent(
             model=chat_model,
             tools=self.tools,
-            prompt=self._build_system_prompt(),
+            system_prompt=self._build_system_prompt(),
         )
 
         return agent
@@ -191,6 +191,7 @@ class AgentExecutor:
             # Complete session
             session.current_step = step
             session.complete()
+            logger.info(f"[run] Agent execution completed. Session: {session.id}, Steps: {step}")
 
             # Emit session end
             end_event = StreamEvent.session_end(
@@ -200,11 +201,15 @@ class AgentExecutor:
                 total_duration_ms=session.duration_ms or 0
             )
             yield end_event
+            logger.info(f"[run] session_end event emitted for session: {session.id}")
             if self.on_event:
                 self.on_event(end_event)
 
-            # Save session to database
-            await self._save_session(session)
+            # Save session to database (don't let this block the stream)
+            try:
+                await self._save_session(session)
+            except Exception as save_error:
+                logger.error(f"[run] Failed to save session: {save_error}")
 
         except Exception as e:
             # Handle unexpected errors
@@ -408,8 +413,18 @@ class AgentExecutor:
 
                                 yield StreamEvent.response_end(session.id, step, content)
 
+            # Safety cleanup: emit thinking_end if still in thinking state
+            if thinking_start_time is not None:
+                thinking_duration = int((time.time() - thinking_start_time) * 1000)
+                yield StreamEvent.thinking_end(session.id, step, thinking_duration)
+                thinking_start_time = None
+
+            logger.info(f"[_stream_agent_execution] Stream completed. Steps: {step}, Tool calls: {len(processed_tool_calls)}, Response emitted: {emitted_response}")
+
         except Exception as e:
             logger.error(f"Stream execution error: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             yield StreamEvent.error(
                 session_id=session.id,
                 code="stream_error",

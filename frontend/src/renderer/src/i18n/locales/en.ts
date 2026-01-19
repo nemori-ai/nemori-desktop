@@ -7,6 +7,7 @@ const en = {
   'nav.chat': 'Chat',
   'nav.memories': 'Memories',
   'nav.insights': 'Insights',
+  'nav.calendar': 'Calendar',
   'nav.proactive': 'Agent',
   'nav.screenshots': 'Screenshots',
   'nav.settings': 'Settings',
@@ -249,7 +250,39 @@ const en = {
   'time.minutesAgo': '{n} minutes ago',
   'time.hoursAgo': '{n} hours ago',
   'time.daysAgo': '{n} days ago',
-  'time.weeksAgo': '{n} weeks ago'
+  'time.weeksAgo': '{n} weeks ago',
+
+  // Calendar page
+  'calendar.title': 'Calendar',
+  'calendar.today': 'Today',
+  'calendar.addEvent': 'Add Event',
+  'calendar.view.day': 'Day',
+  'calendar.view.week': 'Week',
+  'calendar.view.month': 'Month',
+  'calendar.agentMind': 'Agent Mind',
+  'calendar.active': 'Active',
+  'calendar.inactive': 'Inactive',
+  'calendar.energy': 'Energy',
+  'calendar.curiosity': 'Curiosity',
+  'calendar.confidence': 'Confidence',
+  'calendar.activityLevel': 'Activity Level',
+  'calendar.reflect': 'Reflect',
+  'calendar.recentThoughts': 'Recent Thoughts',
+  'calendar.noReflections': 'No reflections yet',
+  'calendar.scheduledAt': 'Scheduled At',
+  'calendar.description': 'Description',
+  'calendar.actionPrompt': 'Action Prompt',
+  'calendar.result': 'Result',
+  'calendar.error': 'Error',
+  'calendar.executeNow': 'Execute Now',
+  'calendar.skip': 'Skip',
+  'calendar.createEvent': 'Create Event',
+  'calendar.eventTitle': 'Event Title',
+  'calendar.eventTitlePlaceholder': 'Enter event title...',
+  'calendar.category': 'Category',
+  'calendar.duration': 'Duration',
+  'calendar.completedNoResult': 'Task completed (no detailed result)',
+  'calendar.executionTime': 'Execution time'
 }
 
 export default en

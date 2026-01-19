@@ -113,13 +113,12 @@ async def list_files(
         if layer is not None:
             files = [f for f in files if f.layer == layer]
 
-        # Group by layer
+        # Convert to dict format
+        files_list = []
         files_by_layer = {}
         for f in files:
             layer_name = manager.LAYER_NAMES.get(f.layer, f"Layer {f.layer}")
-            if layer_name not in files_by_layer:
-                files_by_layer[layer_name] = []
-            files_by_layer[layer_name].append({
+            file_dict = {
                 "name": f.name,
                 "relative_path": f.relative_path,
                 "title": f.title,
@@ -130,12 +129,19 @@ async def list_files(
                 "layer_name": layer_name,
                 "updated_at": f.updated_at.isoformat() if f.updated_at else None,
                 "size": f.size
-            })
+            }
+            files_list.append(file_dict)
+
+            # Also group by layer
+            if layer_name not in files_by_layer:
+                files_by_layer[layer_name] = []
+            files_by_layer[layer_name].append(file_dict)
 
         return {
             "success": True,
             "total_files": len(files),
-            "files_by_layer": files_by_layer
+            "files": files_list,  # Flat list for frontend
+            "files_by_layer": files_by_layer  # Grouped by layer
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -306,6 +306,35 @@ class LLMService:
 
         return None
 
+    async def generate(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        max_tokens: int = 2000,
+        temperature: float = 0.7
+    ) -> str:
+        """Simple text generation wrapper around chat.
+
+        Args:
+            prompt: The user prompt to generate a response for
+            system_prompt: Optional system message for context
+            max_tokens: Maximum tokens in response
+            temperature: Sampling temperature
+
+        Returns:
+            Generated text response
+        """
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        return await self.chat(
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature
+        )
+
     async def chat_with_images(
         self,
         prompt: str,

@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from .routes import chat, memories, screenshots, settings, conversations, visualization, profile, agent, profile_files, proactive
+from .routes import chat, memories, screenshots, settings, conversations, visualization, profile, agent, profile_files, proactive, profile_agent
 
 router = APIRouter()
 
@@ -14,5 +14,6 @@ router.include_router(profile.router, prefix="/profile", tags=["profile"])
 router.include_router(agent.router, prefix="/agent", tags=["agent"])
 router.include_router(profile_files.router, prefix="/profile-files", tags=["profile-files"])
 router.include_router(proactive.router, prefix="/proactive", tags=["proactive-agent"])
+router.include_router(profile_agent.router, prefix="/profile-agent", tags=["profile-agent"])
 
 __all__ = ["router"]

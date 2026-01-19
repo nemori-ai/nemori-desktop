@@ -561,8 +561,15 @@ export default function ChatPage(): JSX.Element {
         setStreamingContent(event.data.content || '')
         break
 
+      case 'session_end':
+        // Session completed - this is a safety net to ensure streaming state is cleared
+        console.log('[Agent] Session ended:', event.data)
+        setIsThinking(false)
+        break
+
       case 'error':
         console.error('Agent error:', event.data)
+        setIsThinking(false)
         break
     }
   }, [])
@@ -684,6 +691,7 @@ export default function ChatPage(): JSX.Element {
       console.error('Failed to send message:', error)
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMessage.id))
     } finally {
+      console.log('[handleSend] Finally block - setting isLoading and isStreaming to false')
       setIsLoading(false)
       setIsStreaming(false)
       setIsThinking(false)

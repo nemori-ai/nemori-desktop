@@ -30,7 +30,6 @@ const navItems: NavItem[] = [
   { path: '/chat', icon: MessageSquare, labelKey: 'nav.chat' },
   { path: '/memories', icon: Brain, labelKey: 'nav.memories' },
   { path: '/insights', icon: BarChart2, labelKey: 'nav.insights' },
-  { path: '/proactive', icon: Zap, labelKey: 'nav.proactive' },
   { path: '/screenshots', icon: Image, labelKey: 'nav.screenshots' },
   { path: '/settings', icon: Settings, labelKey: 'nav.settings' }
 ]

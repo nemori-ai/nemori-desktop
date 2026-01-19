@@ -10,6 +10,11 @@ let initializationPromise: Promise<void> | null = null
 // Helper function to wait
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
+// Get the current base URL (must call initializeApi first)
+export function getBaseUrl(): string {
+  return BASE_URL
+}
+
 // Initialize API base URL from Electron main process with retry
 export async function initializeApi(): Promise<void> {
   // Return existing promise if already initializing successfully
@@ -762,11 +767,16 @@ class ApiService {
           if (line.startsWith('data: ')) {
             const data = line.slice(6)
             if (data === '[DONE]') {
+              console.log('[streamAgentChat] Received [DONE] signal')
               streamDone = true
               break // Break out of inner loop
             }
             try {
               const event = JSON.parse(data) as AgentStreamEvent
+              // Log session_end event
+              if (event.type === 'session_end') {
+                console.log('[streamAgentChat] Received session_end event:', event)
+              }
               onEvent(event)
             } catch {
               // Ignore parse errors
@@ -778,7 +788,9 @@ class ApiService {
       // Process any remaining data
       if (buffer.startsWith('data: ')) {
         const data = buffer.slice(6)
-        if (data !== '[DONE]') {
+        if (data === '[DONE]') {
+          console.log('[streamAgentChat] Received [DONE] from buffer')
+        } else if (data !== '[DONE]') {
           try {
             const event = JSON.parse(data) as AgentStreamEvent
             onEvent(event)
@@ -789,6 +801,7 @@ class ApiService {
       }
     }
 
+    console.log('[streamAgentChat] Stream completed, returning conversationId:', newConversationId)
     return { conversationId: newConversationId, sessionId }
   }
 
@@ -948,6 +961,28 @@ class ApiService {
 
   async initializeProfile(): Promise<{ success: boolean; message: string; profile_dir: string }> {
     return this.request('/profile-files/initialize', { method: 'POST' })
+  }
+
+  // ==================== Profile Agent API ====================
+
+  async getProfileAgentStatus(): Promise<ProfileAgentStatus> {
+    return this.request('/profile-agent/status')
+  }
+
+  async triggerProfileMaintenance(): Promise<ProfileAgentTriggerResponse> {
+    return this.request('/profile-agent/trigger', { method: 'POST' })
+  }
+
+  async getProfileAgentHistory(limit: number = 20): Promise<ProfileAgentTask[]> {
+    return this.request(`/profile-agent/history?limit=${limit}`)
+  }
+
+  async startProfileScheduler(): Promise<{ success: boolean; message: string }> {
+    return this.request('/profile-agent/start', { method: 'POST' })
+  }
+
+  async stopProfileScheduler(): Promise<{ success: boolean; message: string }> {
+    return this.request('/profile-agent/stop', { method: 'POST' })
   }
 }
 
@@ -1153,6 +1188,7 @@ export interface KnowledgeGraphData {
 
 export interface TopicData {
   type_distribution: Record<string, number>
+  category_distribution?: Record<string, number>
   top_keywords: Array<{
     word: string
     count: number
@@ -1388,7 +1424,8 @@ export interface ProfileFileInfo {
 export interface ProfileFilesResponse {
   success: boolean
   total_files: number
-  files_by_layer: Record<string, ProfileFileInfo[]>
+  files: ProfileFileInfo[]  // Flat list of all files
+  files_by_layer: Record<string, ProfileFileInfo[]>  // Grouped by layer
 }
 
 export interface ProfileFileResponse {
@@ -1436,4 +1473,35 @@ export interface ProfileSummaryResponse {
     description: string
   }>
   key_facts?: string[]
+}
+
+// Profile Agent Types
+export interface ProfileAgentStatus {
+  running: boolean
+  interval_hours: number
+  next_run: string | null
+  agent_is_running: boolean
+  agent_last_run: string | null
+}
+
+export interface ProfileAgentTriggerResponse {
+  success: boolean
+  task_id: string | null
+  trigger: string | null
+  work_type: string | null
+  summary: string | null
+  files_modified: string[] | null
+  error: string | null
+  response: string | null
+}
+
+export interface ProfileAgentTask {
+  id: string
+  trigger: string
+  work_type: string | null
+  summary: string | null
+  files_modified: string[]
+  created_at: string | null
+  completed_at: string | null
+  status: string
 }

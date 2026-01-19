@@ -7,6 +7,7 @@ const zh = {
   'nav.chat': '对话',
   'nav.memories': '记忆',
   'nav.insights': '洞察',
+  'nav.calendar': '日历',
   'nav.proactive': '智能体',
   'nav.screenshots': '截图',
   'nav.settings': '设置',
@@ -249,7 +250,39 @@ const zh = {
   'time.minutesAgo': '{n} 分钟前',
   'time.hoursAgo': '{n} 小时前',
   'time.daysAgo': '{n} 天前',
-  'time.weeksAgo': '{n} 周前'
+  'time.weeksAgo': '{n} 周前',
+
+  // Calendar page
+  'calendar.title': '日历',
+  'calendar.today': '今天',
+  'calendar.addEvent': '添加事件',
+  'calendar.view.day': '日',
+  'calendar.view.week': '周',
+  'calendar.view.month': '月',
+  'calendar.agentMind': '智能体心智',
+  'calendar.active': '活跃',
+  'calendar.inactive': '休眠',
+  'calendar.energy': '精力',
+  'calendar.curiosity': '好奇心',
+  'calendar.confidence': '自信',
+  'calendar.activityLevel': '活动等级',
+  'calendar.reflect': '反思',
+  'calendar.recentThoughts': '最近想法',
+  'calendar.noReflections': '暂无反思记录',
+  'calendar.scheduledAt': '计划时间',
+  'calendar.description': '描述',
+  'calendar.actionPrompt': '执行提示',
+  'calendar.result': '结果',
+  'calendar.error': '错误',
+  'calendar.executeNow': '立即执行',
+  'calendar.skip': '跳过',
+  'calendar.createEvent': '创建事件',
+  'calendar.eventTitle': '事件标题',
+  'calendar.eventTitlePlaceholder': '输入事件标题...',
+  'calendar.category': '类别',
+  'calendar.duration': '时长',
+  'calendar.completedNoResult': '任务已完成（无详细结果）',
+  'calendar.executionTime': '执行耗时'
 }
 
 export default zh
