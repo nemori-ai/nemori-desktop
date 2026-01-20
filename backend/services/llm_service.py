@@ -7,12 +7,16 @@ import re
 import sys
 import os
 from typing import Optional, List, Dict, Any, AsyncGenerator
+import httpx
 from openai import AsyncOpenAI
 
 from config.settings import settings
 from storage.database import Database
 
 # Ensure UTF-8 encoding for all I/O operations
+os.environ['PYTHONIOENCODING'] = 'utf-8'
+os.environ['PYTHONUTF8'] = '1'
+
 if sys.stdout.encoding != 'utf-8':
     try:
         sys.stdout.reconfigure(encoding='utf-8')
@@ -25,8 +29,25 @@ if sys.stderr.encoding != 'utf-8':
     except AttributeError:
         pass
 
-# Set environment variable for httpx/openai client
-os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
+
+def ensure_utf8(text: str) -> str:
+    """
+    Ensure text is properly encoded as UTF-8.
+    This fixes 'ascii codec can't encode' errors on some systems.
+    """
+    if not isinstance(text, str):
+        return str(text)
+    # Encode to UTF-8 bytes and decode back to ensure valid UTF-8
+    try:
+        return text.encode('utf-8').decode('utf-8')
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        # If encoding fails, replace problematic characters
+        return text.encode('utf-8', errors='replace').decode('utf-8')
+
+
+def ensure_utf8_list(texts: List[str]) -> List[str]:
+    """Ensure all texts in list are properly UTF-8 encoded"""
+    return [ensure_utf8(t) for t in texts]
 
 
 # Retry configuration
@@ -417,6 +438,9 @@ class LLMService:
         """Generate embeddings for texts with retry logic"""
         if not self._embedding_client:
             raise ValueError("Embedding model not configured. Please set your Embedding API key.")
+
+        # Ensure all texts are properly UTF-8 encoded to prevent ASCII codec errors
+        texts = ensure_utf8_list(texts)
 
         last_error = None
         delay = INITIAL_RETRY_DELAY

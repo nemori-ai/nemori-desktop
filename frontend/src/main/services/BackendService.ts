@@ -77,7 +77,12 @@ export class BackendService {
         cwd: backendPath,
         env: {
           ...process.env,
-          PYTHONUNBUFFERED: '1'
+          PYTHONUNBUFFERED: '1',
+          // Critical: Set UTF-8 encoding to prevent 'ascii codec can't encode' errors
+          PYTHONIOENCODING: 'utf-8',
+          PYTHONUTF8: '1',
+          LC_ALL: 'en_US.UTF-8',
+          LANG: 'en_US.UTF-8'
         },
         stdio: ['ignore', 'pipe', 'pipe']
       }
@@ -138,7 +143,12 @@ export class BackendService {
       {
         env: {
           ...process.env,
-          NEMORI_DATA_DIR: dataDir
+          NEMORI_DATA_DIR: dataDir,
+          // Critical: Set UTF-8 encoding to prevent 'ascii codec can't encode' errors
+          PYTHONIOENCODING: 'utf-8',
+          PYTHONUTF8: '1',
+          LC_ALL: 'en_US.UTF-8',
+          LANG: 'en_US.UTF-8'
         },
         stdio: ['ignore', 'pipe', 'pipe']
       }
