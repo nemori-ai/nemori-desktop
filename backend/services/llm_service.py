@@ -4,11 +4,29 @@ LLM Service for chat and embedding generation
 import asyncio
 import json
 import re
+import sys
+import os
 from typing import Optional, List, Dict, Any, AsyncGenerator
 from openai import AsyncOpenAI
 
 from config.settings import settings
 from storage.database import Database
+
+# Ensure UTF-8 encoding for all I/O operations
+if sys.stdout.encoding != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except AttributeError:
+        pass  # Python < 3.7
+
+if sys.stderr.encoding != 'utf-8':
+    try:
+        sys.stderr.reconfigure(encoding='utf-8')
+    except AttributeError:
+        pass
+
+# Set environment variable for httpx/openai client
+os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
 
 
 # Retry configuration

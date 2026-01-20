@@ -9,6 +9,21 @@ import argparse
 import os
 import sys
 import uvicorn
+
+# ============================================================
+# CRITICAL: Set UTF-8 encoding before any other imports
+# This fixes "ascii codec can't encode" errors on some systems
+# ============================================================
+os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
+os.environ.setdefault('PYTHONUTF8', '1')
+
+# Reconfigure stdout/stderr to UTF-8 if needed
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
