@@ -84,7 +84,6 @@ class SemanticExtractor:
                         memory = await self._consolidate_semantic_item({
                             'type': category,
                             'content': item,
-                            'context': reconstruction.get('reconstructed_details', ''),
                             'source_summary': session_summary,
                             'source_message_ids': message_ids,
                             'confidence': confidence,

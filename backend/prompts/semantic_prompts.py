@@ -139,44 +139,58 @@ def get_calibration_prompt(
     compact_events: str
 ) -> str:
     """
-    Generate prompt for extracting life insights from a session.
+    Generate prompt for extracting life insights by comparing predicted vs actual session content.
+
+    Uses the Predict-Calibrate pattern: the reconstructed details represent what the system
+    predicted based on existing knowledge, while the original events are ground truth.
+    The LLM should focus on extracting knowledge that is NEW (missing from the prediction)
+    or CORRECTIVE (misrepresented in the prediction).
 
     Args:
         categories_desc: Formatted description of the 8 life categories
-        reconstructed: Reconstructed session details
-        compact_events: Compact summary of original events
+        reconstructed: Reconstructed/predicted session details (system's prior belief)
+        compact_events: Compact summary of original events (ground truth)
 
     Returns:
         Formatted prompt string
     """
-    return f"""You are a life insights extraction agent. Analyze the session and extract meaningful, lasting insights about the user into 8 life categories.
+    return f"""You are a knowledge calibration agent. Your task is to compare a PREDICTED summary against the ACTUAL conversation, and extract valuable new knowledge the system doesn't already know.
+
+**How this works:**
+- The **Predicted Summary** below was generated from the system's existing knowledge base. It represents what the system ALREADY KNOWS or EXPECTS about this session.
+- The **Actual Conversation** is the ground truth of what really happened.
+- Your job is to find knowledge **gaps**: facts, preferences, or insights that exist in the actual conversation but are **missing from or misrepresented in** the prediction.
+
+**Predicted Summary (system's prior belief):**
+{reconstructed}
+
+**Actual Conversation (ground truth):**
+{compact_events}
 
 **8 Life Categories:**
 {categories_desc}
 
-**Session Context:**
-{reconstructed}
+**Extraction Rules:**
+1. Extract ONLY knowledge that is NEW (not already captured in the predicted summary) or CORRECTIVE (contradicts the prediction)
+2. If the prediction already covers a fact accurately, do NOT re-extract it
+3. Each insight must pass these tests:
+   - **Persistence**: Will this still be true in 6 months?
+   - **Specificity**: Does it contain concrete, searchable information?
+   - **Independence**: Can it be understood without this conversation's context?
+4. Write from the user's perspective (e.g., "User prefers...", "User is working on...")
+5. It's OK to leave categories empty — empty means the system's knowledge is already up to date
 
-**Original Events:**
-{compact_events}
-
-**Guidelines:**
-1. Each insight must be self-contained and meaningful on its own
-2. Focus on lasting facts, preferences, goals, or habits - avoid transient details
-3. Write from the user's perspective (e.g., "User prefers...", "User is working on...")
-4. Only extract if there's clear evidence in the session
-5. It's OK to leave categories empty if no relevant insights are found
-
-**Good Examples:**
+**Good Examples (new knowledge not in prediction):**
 - career: "User is developing a personal AI assistant app called Nemori"
 - health: "User exercises in the morning before work"
 - growth: "User is learning about memory systems and embeddings"
 - leisure: "User enjoys watching tech YouTube videos"
 
 **Bad Examples (DO NOT extract):**
-- "User clicked a button" (too specific, not lasting)
+- Facts already accurately covered in the predicted summary (redundant)
+- "User clicked a button" (transient, not lasting)
 - "The document has 10 pages" (not about the user)
-- "User is typing" (transient action)
+- Temporary emotions or reactions
 
 Return JSON with arrays for each category (empty arrays are fine):
 {{"career": [...], "finance": [...], "health": [...], "family": [...], "social": [...], "growth": [...], "leisure": [...], "spirit": [...]}}
@@ -185,34 +199,43 @@ Maximum 2 items per category, 8 items total."""
 
 
 # Template for calibration prompt
-CALIBRATION_PROMPT = """You are a life insights extraction agent. Analyze the session and extract meaningful, lasting insights about the user into 8 life categories.
+CALIBRATION_PROMPT = """You are a knowledge calibration agent. Your task is to compare a PREDICTED summary against the ACTUAL conversation, and extract valuable new knowledge the system doesn't already know.
+
+**How this works:**
+- The **Predicted Summary** below was generated from the system's existing knowledge base. It represents what the system ALREADY KNOWS or EXPECTS about this session.
+- The **Actual Conversation** is the ground truth of what really happened.
+- Your job is to find knowledge **gaps**: facts, preferences, or insights that exist in the actual conversation but are **missing from or misrepresented in** the prediction.
+
+**Predicted Summary (system's prior belief):**
+{reconstructed}
+
+**Actual Conversation (ground truth):**
+{compact_events}
 
 **8 Life Categories:**
 {categories_desc}
 
-**Session Context:**
-{reconstructed}
+**Extraction Rules:**
+1. Extract ONLY knowledge that is NEW (not already captured in the predicted summary) or CORRECTIVE (contradicts the prediction)
+2. If the prediction already covers a fact accurately, do NOT re-extract it
+3. Each insight must pass these tests:
+   - **Persistence**: Will this still be true in 6 months?
+   - **Specificity**: Does it contain concrete, searchable information?
+   - **Independence**: Can it be understood without this conversation's context?
+4. Write from the user's perspective (e.g., "User prefers...", "User is working on...")
+5. It's OK to leave categories empty — empty means the system's knowledge is already up to date
 
-**Original Events:**
-{compact_events}
-
-**Guidelines:**
-1. Each insight must be self-contained and meaningful on its own
-2. Focus on lasting facts, preferences, goals, or habits - avoid transient details
-3. Write from the user's perspective (e.g., "User prefers...", "User is working on...")
-4. Only extract if there's clear evidence in the session
-5. It's OK to leave categories empty if no relevant insights are found
-
-**Good Examples:**
+**Good Examples (new knowledge not in prediction):**
 - career: "User is developing a personal AI assistant app called Nemori"
 - health: "User exercises in the morning before work"
 - growth: "User is learning about memory systems and embeddings"
 - leisure: "User enjoys watching tech YouTube videos"
 
 **Bad Examples (DO NOT extract):**
-- "User clicked a button" (too specific, not lasting)
+- Facts already accurately covered in the predicted summary (redundant)
+- "User clicked a button" (transient, not lasting)
 - "The document has 10 pages" (not about the user)
-- "User is typing" (transient action)
+- Temporary emotions or reactions
 
 Return JSON with arrays for each category (empty arrays are fine):
 {{"career": [...], "finance": [...], "health": [...], "family": [...], "social": [...], "growth": [...], "leisure": [...], "spirit": [...]}}
